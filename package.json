@@ -1,0 +1,33 @@
+{
+  "name": "h3-node",
+  "version": "1.0.0",
+  "description": "H3 Bindings to node using N-API",
+  "main": "index.js",
+  "scripts": {
+    "install": "node-gyp-build",
+    "test": "nodeunit test",
+    "prebuild": "cd h3 && cmake . && make && cd .. && prebuildify --target=node@`node --version | sed s/v//` --napi"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/dfellis/h3-node.git"
+  },
+  "keywords": [
+    "h3",
+    "binding",
+    "n-api"
+  ],
+  "author": "David Ellis <isv.damocles@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/dfellis/h3-node/issues"
+  },
+  "homepage": "https://github.com/dfellis/h3-node#readme",
+  "dependencies": {
+    "node-gyp-build": "^3.5.0"
+  },
+  "devDependencies": {
+    "nodeunit": "^0.11.3",
+    "prebuildify": "^2.9.1"
+  }
+}
