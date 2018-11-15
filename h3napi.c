@@ -37,7 +37,7 @@ napi_value napiGeoToH3(napi_env env, napi_callback_info info) {
   char h3String[17];
   h3ToString(h3, h3String, 17);
   napi_value result;
-  if (napi_create_string_utf8(env, h3String, 17, &result) != napi_ok) {
+  if (napi_create_string_utf8(env, h3String, 15, &result) != napi_ok) {
     napi_throw_error(env, "EINVAL", "Could not write H3 string");
   }
 
