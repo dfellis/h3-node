@@ -23,3 +23,49 @@ exports.h3ToGeo = test => {
   }
   test.done()
 }
+
+exports.geoToH3Benchmark = test => {
+  const start = process.hrtime()
+  for (let i = 0; i < 1000; i++) {
+    const lat = 360 * Math.random() - 180
+    const lng = 180 * Math.random() - 90
+    h3js.geoToH3(lat, lng, 9)
+  }
+  const h3jsTime = process.hrtime(start)
+  const middle = process.hrtime()
+  for (let i = 0; i < 1000; i++) {
+    const lat = 360 * Math.random() - 180
+    const lng = 180 * Math.random() - 90
+    h3node.geoToH3(lat, lng, 9)
+  }
+  const h3nodeTime = process.hrtime(middle)
+
+  console.log('geoToH3 Benchmark:')
+  console.log('H3-js time in ns:   ', h3jsTime[0] * 1e9 + h3jsTime[1])
+  console.log('H3-node time in ns: ', h3nodeTime[0] * 1e9 + h3nodeTime[1])
+  test.done()
+}
+
+exports.h3ToGeoBenchmark = test => {
+  const h3Indices = []
+  for (let i = 0; i < 1000; i++) {
+    const lat = 360 * Math.random() - 180
+    const lng = 180 * Math.random() - 90
+    h3Indices.push(h3node.geoToH3(lat, lng, 9))
+  }
+  const start = process.hrtime()
+  for (let i = 0; i < 1000; i++) {
+    h3js.h3ToGeo(h3Indices[i])
+  }
+  const h3jsTime = process.hrtime(start)
+  const middle = process.hrtime()
+  for (let i = 0; i < 1000; i++) {
+    h3node.h3ToGeo(h3Indices[i])
+  }
+  const h3nodeTime = process.hrtime(middle)
+
+  console.log('h3ToGeo Benchmark:')
+  console.log('H3-js time in ns:   ', h3jsTime[0] * 1e9 + h3jsTime[1])
+  console.log('H3-node time in ns: ', h3nodeTime[0] * 1e9 + h3nodeTime[1])
+  test.done()
+}
