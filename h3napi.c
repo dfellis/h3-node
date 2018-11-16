@@ -21,16 +21,19 @@ napi_value napiGeoToH3(napi_env env, napi_callback_info info) {
     napi_throw_error(env, "EINVAL", "Expected numeric latitude");
     return NULL;
   }
+  lat = degsToRads(lat);
 
   if (napi_get_value_double(env, argv[1], (double *) &lng) != napi_ok) {
     napi_throw_error(env, "EINVAL", "Expected numeric longitude");
     return NULL;
   }
+  lng = degsToRads(lng);
 
   if (napi_get_value_int32(env, argv[2], (int *) &res) != napi_ok) {
     napi_throw_error(env, "EINVAL", "Expected numeric resolution");
     return NULL;
   }
+  printf("%f %f %i\n", lat, lng, res);
 
   GeoCoord geo = { lat, lng };
   H3Index h3 = geoToH3(&geo, res);
@@ -71,15 +74,16 @@ napi_value napiH3ToGeo(napi_env env, napi_callback_info info) {
   if (napi_create_array_with_length(env, 2, &result) != napi_ok) {
     napi_throw_error(env, "EINVAL", "Could not create return array");
   }
+  printf("%f %f\n", geo.lat, geo.lon);
 
   napi_value lat;
   napi_value lng;
 
-  if (napi_create_double(env, geo.lat, &lat) != napi_ok) {
+  if (napi_create_double(env, radsToDegs(geo.lat), &lat) != napi_ok) {
     napi_throw_error(env, "EINVAL", "Could not write latitude double");
   }
 
-  if (napi_create_double(env, geo.lon, &lng) != napi_ok) {
+  if (napi_create_double(env, radsToDegs(geo.lon), &lng) != napi_ok) {
     napi_throw_error(env, "EINVAL", "Could not write longitude double");
   }
 
