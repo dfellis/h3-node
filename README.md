@@ -23,7 +23,31 @@ const h3center = h3.h3ToGeo(h3index)
 
 `h3-js` is an emscripten transpilation of the H3 code into Javascript with a Javascript wrapper file similar to a binding in spirit to handle calling these quasi-C functions for you.
 
-Being 100% javascript it works across the entire Javascript ecosystem (especially when paired with browserify or babel to handle the Node-isms for non-Node JS environments), but that portability comes at a cost in performance. (TODO: write benchmarks to compare h3-js to h3-node)
+Being 100% javascript it works across the entire Javascript ecosystem (especially when paired with browserify or babel to handle the Node-isms for non-Node JS environments), but that portability comes at a cost in performance. Preliminary benchmarks show a near 10x speedup with the N-API approach:
+
+```
+damocles@Talyn:~/oss/h3-node(master)$ yarn test
+yarn run v1.12.3
+$ nodeunit test
+
+index
+(node:25378) Warning: N-API is an experimental feature and could change at any time.
+✔ geoToH3
+✔ h3ToGeo
+geoToH3 Benchmark:
+H3-js time in ns:    35973003
+H3-node time in ns:  4145355
+✔ geoToH3Benchmark
+h3ToGeo Benchmark:
+H3-js time in ns:    18126300
+H3-node time in ns:  2425504
+✔ h3ToGeoBenchmark
+
+OK: 30 assertions (107ms)
+Done in 0.37s.
+```
+
+About 8.7x faster for `geoToH3` and about 7.5x faster for `h3ToGeo`. Operations that do internal iteration (like the k-ring operations) could potentially be faster.
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.
 
