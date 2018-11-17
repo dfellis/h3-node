@@ -68,8 +68,6 @@ OK: 150 assertions (171ms)
 Done in 0.43s.
 ```
 
-About 8.7x faster for `geoToH3`, about 7.5x faster for `h3ToGeo`, and 1.8x faster for `h3ToGeoBoundary`. Operations that do internal iteration (like the k-ring operations) could potentially be faster.
-
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.
 
 That makes `h3-node` a "nice to have" but not as required as `h3-js`. (In a similar vein, I intend to write an `h3-wasm` for higher-performance H3 in modern browsers that can be a drop-in replacement for `h3-js` when WebAssembly is present.)
