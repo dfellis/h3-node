@@ -1,0 +1,11 @@
+language: node_js
+node_js:
+  - 8
+  - 10
+
+notifications:
+  email:
+    recipients:
+      - isv.damocles@gmail.com
+    on_success: change
+    on_failure: change
