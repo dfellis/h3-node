@@ -4,10 +4,16 @@
 
 H3 Bindings to Node using N-API
 
-## Install (when published)
+## Install
+
+To install this package, you need several development tools available: `git`, `gyp`, `make`, `cmake`, and a C compiler (`gcc` or `clang`). Once those are available, simply
 
 ```sh
 yarn add h3-node
+
+-- or --
+
+npm i h3-node
 ```
 
 ## Usage
