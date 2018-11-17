@@ -1,7 +1,7 @@
 {
   "targets": [{
     "cflags": [
-      "-std=C99"
+      "-std=c99"
     ],
     "target_name": "h3node",
     "include_dirs": [
