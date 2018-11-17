@@ -1,5 +1,7 @@
 # H3-Node
 
+[![Build Status](https://travis-ci.org/dfellis/h3-node.svg?branch=master)](https://travis-ci.org/dfellis/h3-node)
+
 H3 Bindings to Node using N-API
 
 ## Install (when published)
