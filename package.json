@@ -4,7 +4,7 @@
   "description": "H3 Bindings to node using N-API",
   "main": "index.js",
   "scripts": {
-    "install": "git clone https://github.com/uber/h3 && cd h3 && git checkout d30341d8a6b363b06ee14fc52f1f9b7060e8aab2 && cmake . -DCMAKE_C_FLAGS=-fPIC && make && cd .. && node-gyp-build",
+    "install": "rm -rf build && rm -rf h3 && git clone --depth 3 https://github.com/uber/h3 && cd h3 && git checkout d30341d8a6b363b06ee14fc52f1f9b7060e8aab2 && cmake . -DCMAKE_C_FLAGS=-fPIC && make && cd .. && node-gyp-build",
     "test": "nodeunit test"
   },
   "repository": {
