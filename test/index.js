@@ -64,7 +64,7 @@ exports.h3GetBaseCell = test => {
     h3Indices.push(h3node.geoToH3(lat, lng, res))
   }
   for (let i = 0; i < 10; i++) {
-    test.equal(h3node.h3GetBaseCell(h3Indices[i]), h3js.h3GetBaseCell(h3Indices[i]));
+    test.equal(h3node.h3GetBaseCell(h3Indices[i]), h3js.h3GetBaseCell(h3Indices[i]))
   }
   test.done()
 }
@@ -83,7 +83,7 @@ exports.h3IsValid = test => {
     }
   }
   for (let i = 0; i < 10; i++) {
-    test.equal(h3node.h3IsValid(h3Indices[i]), h3js.h3IsValid(h3Indices[i]));
+    test.equal(h3node.h3IsValid(h3Indices[i]), h3js.h3IsValid(h3Indices[i]))
   }
   test.done()
 }
@@ -98,7 +98,7 @@ exports.h3IsResClassIII = test => {
     h3Indices.push(h3node.geoToH3(lat, lng, res))
   }
   for (let i = 0; i < 10; i++) {
-    test.equal(h3node.h3IsResClassIII(h3Indices[i]), h3js.h3IsResClassIII(h3Indices[i]));
+    test.equal(h3node.h3IsResClassIII(h3Indices[i]), h3js.h3IsResClassIII(h3Indices[i]))
   }
   test.done()
 }
@@ -113,7 +113,22 @@ exports.h3IsPentagon = test => {
     h3Indices.push(h3node.geoToH3(lat, lng, res))
   }
   for (let i = 0; i < 10; i++) {
-    test.equal(h3node.h3IsPentagon(h3Indices[i]), h3js.h3IsPentagon(h3Indices[i]));
+    test.equal(h3node.h3IsPentagon(h3Indices[i]), h3js.h3IsPentagon(h3Indices[i]))
+  }
+  test.done()
+}
+
+exports.kRing = test => {
+  test.expect(10);
+  const h3Indices = []
+  for (let i = 0; i < 10; i++) {
+    const lat = 360 * Math.random() - 180
+    const lng = 180 * Math.random() - 90
+    const res = Math.floor(Math.random() * 16)
+    h3Indices.push(h3node.geoToH3(lat, lng, res))
+  }
+  for (let i = 0; i < 10; i++) {
+    test.deepEqual(h3node.kRing(h3Indices[i], i), h3js.kRing(h3Indices[i], i))
   }
   test.done()
 }
@@ -324,3 +339,34 @@ exports.h3IsPentagonBenchmark = test => {
   console.log('H3-node time in ns: ', h3nodeTime[0] * 1e9 + h3nodeTime[1])
   test.done()
 }
+
+exports.kRingBenchmark = test => {
+  const h3Indices = []
+  for (let i = 0; i < 10; i++) {
+    const lat = 360 * Math.random() - 180
+    const lng = 180 * Math.random() - 90
+    const res = Math.floor(Math.random() * 16)
+    h3Indices.push(h3node.geoToH3(lat, lng, res))
+  }
+  const start = process.hrtime()
+  for (let i = 0; i < 100; i++) {
+    for (let j = 0; j < 10; j++) {
+      h3js.kRing(h3Indices[j], j)
+    }
+  }
+  const h3jsTime = process.hrtime(start)
+  const middle = process.hrtime()
+  for (let i = 0; i < 100; i++) {
+    for (let j = 0; j < 10; j++) {
+      h3node.kRing(h3Indices[j], j)
+    }
+  }
+  const h3nodeTime = process.hrtime(middle)
+
+  console.log('')
+  console.log('kRing Benchmark:')
+  console.log('H3-js time in ns:   ', h3jsTime[0] * 1e9 + h3jsTime[1])
+  console.log('H3-node time in ns: ', h3nodeTime[0] * 1e9 + h3nodeTime[1])
+  test.done()
+}
+
