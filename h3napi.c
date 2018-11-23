@@ -390,6 +390,94 @@ napi_value napiKRing(napi_env env, napi_callback_info info) {
   return result;
 }
 
+napi_value napiKRingDistances(napi_env env, napi_callback_info info) {
+  napi_value argv[2];
+  size_t argc = 2;
+
+  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
+
+  if (argc < 1) {
+    napi_throw_error(env, "EINVAL", "Too few arguments");
+    return NULL;
+  }
+
+  char h3String[17];
+  size_t writeCount;
+
+  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected string h3 index");
+    return NULL;
+  }
+
+  H3Index h3 = stringToH3(h3String);
+
+  int k;
+
+  if (napi_get_value_int32(env, argv[1], &k) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected integer k radius");
+    return NULL;
+  }
+
+  int maxSize = maxKringSize(k);
+
+  H3Index* kRingOut = calloc(maxSize, sizeof(H3Index));
+  int* distances = calloc(maxSize, sizeof(int));
+
+  kRingDistances(h3, k, kRingOut, distances);
+
+  napi_value result;
+
+  if (napi_create_array(env, &result) != napi_ok) {
+    napi_throw_error(env, "ENOSPC", "Could not create return array");
+  }
+
+  for (int i = 0; i < k + 1; i++) {
+    napi_value ring;
+
+    if (napi_create_array(env, &ring) != napi_ok) {
+      napi_throw_error(env, "ENOSPC", "Could not create return ring array");
+    }
+
+    if (napi_set_element(env, result, i, ring) != napi_ok) {
+      napi_throw_error(env, "ENOSPC", "Could not put ring array in array");
+    }
+  }
+
+  int* arrayIndices = calloc(k + 1, sizeof(int));
+
+  for (int i = 0; i < maxSize; i++) {
+    char h3ValStr[17];
+    napi_value h3Val;
+    int ring;
+    napi_value ringArray;
+
+    if (kRingOut[i] == 0) continue;
+
+    h3ToString(kRingOut[i], h3ValStr, 17);
+    ring = distances[i];
+
+    if (napi_create_string_utf8(env, h3ValStr, 15, &h3Val) != napi_ok) {
+      napi_throw_error(env, "ENOSPC", "Could not write H3 string");
+    }
+
+    if (napi_get_element(env, result, ring, &ringArray) != napi_ok) {
+      napi_throw_error(env, "EINVAL", "Could not get ring array from array");
+    }
+
+    if (napi_set_element(env, ringArray, arrayIndices[ring], h3Val) != napi_ok) {
+      napi_throw_error(env, "ENOSPC", "Could not store H3 string in array");
+    }
+
+    arrayIndices[ring]++;
+  }
+
+  free(arrayIndices);
+  free(distances);
+  free(kRingOut);
+
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -434,6 +522,10 @@ napi_value init_all (napi_env env, napi_value exports) {
   napi_value kRingFn;
   napi_create_function(env, NULL, 0, napiKRing, NULL, &kRingFn);
   napi_set_named_property(env, exports, "kRing", kRingFn);
+
+  napi_value kRingDistancesFn;
+  napi_create_function(env, NULL, 0, napiKRingDistances, NULL, &kRingDistancesFn);
+  napi_set_named_property(env, exports, "kRingDistances", kRingDistancesFn);
 
   return exports;
 }
