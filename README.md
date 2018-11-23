@@ -29,6 +29,7 @@ When fully implemented, it will be a drop-in replacement for [H3-js](https://git
 * `h3IsResClassIII`
 * `h3IsPentagon`
 * `kRing`
+* `kRingDistances`
 
 ```js
 const h3 = require('h3-node')
@@ -42,6 +43,8 @@ const baseCell = h3.h3GetBaseCell(h3index)
 const valid = h3.h3IsValid(h3index)
 const resIsClassIII = h3.h3IsResClassIII(h3index)
 const isPentagon = h3.h3IsPentagon(h3index)
+const neighbors = h3.kRing(h3index, 1)
+const threeRings = h3.kRingDistances(h3index, 3)
 ```
 
 ## Why another H3 for Node?
@@ -56,7 +59,7 @@ yarn run v1.12.3
 $ nodeunit test
 
 index
-(node:6034) Warning: N-API is an experimental feature and could change at any time.
+(node:5029) Warning: N-API is an experimental feature and could change at any time.
 ✔ geoToH3
 ✔ h3ToGeo
 ✔ h3ToGeoBoundary
@@ -66,54 +69,60 @@ index
 ✔ h3IsResClassIII
 ✔ h3IsPentagon
 ✔ kRing
+✔ kRingDistances
 
 geoToH3 Benchmark:
-H3-js time in ns:    35497713
-H3-node time in ns:  3642216
+H3-js time in ns:    42496513
+H3-node time in ns:  3536431
 ✔ geoToH3Benchmark
 
 h3ToGeo Benchmark:
-H3-js time in ns:    14556061
-H3-node time in ns:  2591844
+H3-js time in ns:    14965762
+H3-node time in ns:  2315132
 ✔ h3ToGeoBenchmark
 
 h3ToGeoBoundary Benchmark:
-H3-js time in ns:    20828735
-H3-node time in ns:  8384092
+H3-js time in ns:    17117378
+H3-node time in ns:  7920736
 ✔ h3ToGeoBoundaryBenchmark
 
 h3GetResolution Benchmark:
-H3-js time in ns:    155874
-H3-node time in ns:  419005
+H3-js time in ns:    147167
+H3-node time in ns:  371184
 ✔ h3GetResolutionBenchmark
 
 h3GetBaseCell Benchmark:
-H3-js time in ns:    630647
-H3-node time in ns:  421632
+H3-js time in ns:    584415
+H3-node time in ns:  388909
 ✔ h3GetBaseCellBenchmark
 
 h3IsValid Benchmark:
-H3-js time in ns:    2049754
-H3-node time in ns:  406342
+H3-js time in ns:    1881503
+H3-node time in ns:  373933
 ✔ h3IsValidBenchmark
 
 h3IsResClassIII Benchmark:
-H3-js time in ns:    510439
-H3-node time in ns:  423509
+H3-js time in ns:    534464
+H3-node time in ns:  426818
 ✔ h3IsResClassIIIBenchmark
 
 h3IsPentagon Benchmark:
-H3-js time in ns:    578687
-H3-node time in ns:  525832
+H3-js time in ns:    546956
+H3-node time in ns:  417557
 ✔ h3IsPentagonBenchmark
 
 kRing Benchmark:
-H3-js time in ns:    90918124
-H3-node time in ns:  47029790
+H3-js time in ns:    421553823
+H3-node time in ns:  61554156
 ✔ kRingBenchmark
 
-OK: 210 assertions (458ms)
-Done in 1.87s.
+kRingDistance Benchmark:
+H3-js time in ns:    312638460
+H3-node time in ns:  54553553
+✔ kRingDistancesBenchmark
+
+OK: 220 assertions (1044ms)
+Done in 1.28s.
 ```
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.
