@@ -116,6 +116,16 @@ exportTest('hexRing', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
 ], allowPentagonTest)
+exportTest('h3Distance', () => h3node
+  .kRing(h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)), 5)
+  .filter(function(h, i, a) {
+    if (a.length - i === this.count) {
+      this.count--
+      return true
+    }
+    if (this.count === 0) return false
+    return Math.random() < 0.5
+  }, { count: 2 }), simpleTest)
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -147,4 +157,13 @@ exportBenchmark('hexRing', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
 ], true)
-
+exportBenchmark('h3Distance', () => h3node
+  .kRing(h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)), 5)
+  .filter(function(h, i, a) {
+    if (a.length - i === this.count) {
+      this.count--
+      return true
+    }
+    if (this.count === 0) return false
+    return Math.random() < 0.5
+  }, { count: 2, }))
