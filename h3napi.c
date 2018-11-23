@@ -28,15 +28,15 @@
     napi_throw_error(env, "EINVAL", "Could not get element from array at index " #I);\
   }
 
-#define napiGetH3Index(I, V, O) \
-  char V[17];\
-  size_t V ## Count;\
+#define napiGetH3Index(I, O) \
+  char O ## Str[17];\
+  size_t O ## StrCount;\
   \
-  if (napi_get_value_string_utf8(env, argv[I], V, 17, &V ## Count) != napi_ok) {\
+  if (napi_get_value_string_utf8(env, argv[I], O ## Str, 17, &O ## StrCount) != napi_ok) {\
     napi_throw_error(env, "EINVAL", "Expected string h3 index in arg " #I);\
   }\
   \
-  H3Index O = stringToH3(V);
+  H3Index O = stringToH3(O ## Str);
 
 #define napiFixedArray(V, L) \
   napi_value V;\
@@ -109,7 +109,7 @@ napiFn(geoToH3) {
 
 napiFn(h3ToGeo) {
   napiArgs(1);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
 
   GeoCoord geo = { 0 };
   h3ToGeo(h3, &geo);
@@ -123,7 +123,7 @@ napiFn(h3ToGeo) {
 
 napiFn(h3ToGeoBoundary) {
   napiArgs(1);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
 
   GeoBoundary geoBoundary = { 0 };
   h3ToGeoBoundary(h3, &geoBoundary);
@@ -145,7 +145,7 @@ napiFn(h3ToGeoBoundary) {
 
 napiFn(h3GetResolution) {
   napiArgs(1);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
 
   int res = h3GetResolution(h3);
 
@@ -156,7 +156,7 @@ napiFn(h3GetResolution) {
 
 napiFn(h3GetBaseCell) {
   napiArgs(1);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
 
   int baseCell = h3GetBaseCell(h3);
 
@@ -167,7 +167,7 @@ napiFn(h3GetBaseCell) {
 
 napiFn(h3IsValid) {
   napiArgs(1);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
 
   int isValid = h3IsValid(h3);
 
@@ -178,7 +178,7 @@ napiFn(h3IsValid) {
 
 napiFn(h3IsResClassIII) {
   napiArgs(1);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
 
   int isResClassIII = h3IsResClassIII(h3);
 
@@ -189,7 +189,7 @@ napiFn(h3IsResClassIII) {
 
 napiFn(h3IsPentagon) {
   napiArgs(1);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
 
   int isPentagon = h3IsPentagon(h3);
 
@@ -204,7 +204,7 @@ napiFn(h3IsPentagon) {
 
 napiFn(kRing) {
   napiArgs(2);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
   napiGetValue(1, int32, int, k);
 
   int maxSize = maxKringSize(k);
@@ -230,7 +230,7 @@ napiFn(kRing) {
 
 napiFn(kRingDistances) {
   napiArgs(2);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
   napiGetValue(1, int32, int, k);
 
   int maxSize = maxKringSize(k);
@@ -267,7 +267,7 @@ napiFn(kRingDistances) {
 
 napiFn(hexRing) {
   napiArgs(2);
-  napiGetH3Index(0, h3String, h3);
+  napiGetH3Index(0, h3);
   napiGetValue(1, int32, int, k);
 
   int maxSize = k == 0 ? 1 : 6 * k;
@@ -293,6 +293,18 @@ napiFn(hexRing) {
   return result;
 }
 
+napiFn(h3Distance) {
+  napiArgs(2);
+  napiGetH3Index(0, origin);
+  napiGetH3Index(1, destination);
+
+  int distance = h3Distance(origin, destination);
+
+  napiStoreValue(result, int32, distance);
+
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -314,6 +326,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(kRing);
   napiExport(kRingDistances);
   napiExport(hexRing);
+  napiExport(h3Distance);
 
   return exports;
 }
