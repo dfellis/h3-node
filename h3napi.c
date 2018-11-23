@@ -2,160 +2,138 @@
 #include <stdio.h>
 #include "h3api.h"
 
+#define napiFn(N) napi_value N ## Napi(napi_env env, napi_callback_info info)
+
+#define napiArgs(N) \
+  napi_value argv[N];\
+  size_t argc = N;\
+  \
+  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);\
+  \
+  if (argc < N) {\
+    napi_throw_error(env, "EINVAL", "Too few arguments");\
+    return NULL;\
+  }
+
+#define napiGetValue(I, J, T, N) \
+  T N;\
+  if (napi_get_value_ ## J(env, argv[I], (T *) &N) != napi_ok) {\
+    napi_throw_error(env, "EINVAL", "Expected " #J " in arg " #I);\
+    return NULL;\
+  }
+
+#define napiGetNapiValue(A, I, N) \
+  napi_value N;\
+  if (napi_get_element(env, A, I, &N) != napi_ok) {\
+    napi_throw_error(env, "EINVAL", "Could not get element from array at index " #I);\
+  }
+
+#define napiGetH3Index(I, V, O) \
+  char V[17];\
+  size_t V ## Count;\
+  \
+  if (napi_get_value_string_utf8(env, argv[I], V, 17, &V ## Count) != napi_ok) {\
+    napi_throw_error(env, "EINVAL", "Expected string h3 index in arg " #I);\
+  }\
+  \
+  H3Index O = stringToH3(V);
+
+#define napiFixedArray(V, L) \
+  napi_value V;\
+  if (napi_create_array_with_length(env, L, &V) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not create fixed length array");\
+  }
+
+#define napiVarArray(V) \
+  napi_value V;\
+  if (napi_create_array(env, &V) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not create variable array");\
+  }
+
+#define napiSetNapiValue(A, I, N) \
+  if (napi_set_element(env, A, I, N) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not store " #N " in array");\
+  }
+
+#define napiSetValue(A, I, J, V, N) \
+  napi_value N;\
+  \
+  if (napi_create_ ## J(env, V, &N) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not write " #N #J);\
+  }\
+  napiSetNapiValue(A, I, N);
+
+#define napiStoreH3Index(V, O) \
+  char V ## String[17];\
+  h3ToString(V, V ## String, 17);\
+  napi_value O;\
+  if (napi_create_string_utf8(env, V ## String, 15, &O) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not write H3 string");\
+  }
+
+#define napiStoreValue(N, T, V) \
+  napi_value N;\
+  if (napi_create_ ## T(env, V, &N) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not create " #N);\
+  }
+
+#define napiStoreBool(N, V) \
+  napi_value N;\
+  if (napi_get_boolean(env, V, &N) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not create boolean");\
+  }
+
+#define napiExport(N) \
+  napi_value N ## Fn;\
+  napi_create_function(env, NULL, 0, N ## Napi, NULL, &N ## Fn);\
+  napi_set_named_property(env, exports, #N, N ## Fn);
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // Indexing Functions                                                        //
 ///////////////////////////////////////////////////////////////////////////////
 
-napi_value napiGeoToH3(napi_env env, napi_callback_info info) {
-  napi_value argv[3];
-  size_t argc = 3;
+napiFn(geoToH3) {
+  napiArgs(3);
+  napiGetValue(0, double, double, lat);
+  napiGetValue(1, double, double, lng);
+  napiGetValue(2, int32, int, res);
 
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 3) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  double lat;
-  double lng;
-  int res;
-
-  if (napi_get_value_double(env, argv[0], (double *) &lat) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected numeric latitude");
-    return NULL;
-  }
-  lat = degsToRads(lat);
-
-  if (napi_get_value_double(env, argv[1], (double *) &lng) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected numeric longitude");
-    return NULL;
-  }
-  lng = degsToRads(lng);
-
-  if (napi_get_value_int32(env, argv[2], (int *) &res) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected numeric resolution");
-    return NULL;
-  }
-
-  GeoCoord geo = { lat, lng };
+  GeoCoord geo = { degsToRads(lat), degsToRads(lng) };
   H3Index h3 = geoToH3(&geo, res);
-  char h3String[17];
-  h3ToString(h3, h3String, 17);
-  napi_value result;
-  if (napi_create_string_utf8(env, h3String, 15, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not write H3 string");
-  }
+
+  napiStoreH3Index(h3, result);
 
   return result;
 }
 
-napi_value napiH3ToGeo(napi_env env, napi_callback_info info) {
-  napi_value argv[1];
-  size_t argc = 1;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
+napiFn(h3ToGeo) {
+  napiArgs(1);
+  napiGetH3Index(0, h3String, h3);
 
   GeoCoord geo = { 0 };
   h3ToGeo(h3, &geo);
-  napi_value result;
-  if (napi_create_array_with_length(env, 2, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create return array");
-  }
 
-  napi_value lat;
-  napi_value lng;
-
-  if (napi_create_double(env, radsToDegs(geo.lat), &lat) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not write latitude double");
-  }
-
-  if (napi_create_double(env, radsToDegs(geo.lon), &lng) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not write longitude double");
-  }
-
-  if (napi_set_element(env, result, 0, lat) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not store latitude in array");
-  }
-
-  if (napi_set_element(env, result, 1, lng) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not store longitude in array");
-  }
+  napiFixedArray(result, 2);
+  napiSetValue(result, 0, double, radsToDegs(geo.lat), lat);
+  napiSetValue(result, 1, double, radsToDegs(geo.lon), lng);
 
   return result;
 }
 
-napi_value napiH3ToGeoBoundary(napi_env env, napi_callback_info info) {
-  napi_value argv[1];
-  size_t argc = 1;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
+napiFn(h3ToGeoBoundary) {
+  napiArgs(1);
+  napiGetH3Index(0, h3String, h3);
 
   GeoBoundary geoBoundary = { 0 };
   h3ToGeoBoundary(h3, &geoBoundary);
-  napi_value result;
-  if (napi_create_array_with_length(env, geoBoundary.numVerts, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create return array");
-  }
 
+  napiFixedArray(result, geoBoundary.numVerts);
   for (int i = 0; i < geoBoundary.numVerts; i++) {
-    napi_value latlngArray;
-    napi_value lat;
-    napi_value lng;
-
-    if (napi_create_array_with_length(env, 2, &latlngArray) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not create return array");
-    }
-
-    if (napi_create_double(env, radsToDegs(geoBoundary.verts[i].lat), &lat) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not write latitude double");
-    }
-
-    if (napi_create_double(env, radsToDegs(geoBoundary.verts[i].lon), &lng) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not write longitude double");
-    }
-
-    if (napi_set_element(env, latlngArray, 0, lat) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not store latitude in array");
-    }
-
-    if (napi_set_element(env, latlngArray, 1, lng) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not store longitude in array");
-    }
-
-    if (napi_set_element(env, result, i, latlngArray) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not store lat, lng array in array");
-    }
+    napiFixedArray(latlngArray, 2);
+    napiSetValue(latlngArray, 0, double, radsToDegs(geoBoundary.verts[i].lat), lat);
+    napiSetValue(latlngArray, 1, double, radsToDegs(geoBoundary.verts[i].lon), lng);
+    napiSetNapiValue(result, i, latlngArray);
   }
 
   return result;
@@ -165,157 +143,57 @@ napi_value napiH3ToGeoBoundary(napi_env env, napi_callback_info info) {
 // Inspection Functions                                                      //
 ///////////////////////////////////////////////////////////////////////////////
 
-napi_value napiH3GetResolution(napi_env env, napi_callback_info info) {
-  napi_value argv[1];
-  size_t argc = 1;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
+napiFn(h3GetResolution) {
+  napiArgs(1);
+  napiGetH3Index(0, h3String, h3);
 
   int res = h3GetResolution(h3);
 
-  napi_value result;
-  if (napi_create_int32(env, res, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create resolution integer");
-  }
+  napiStoreValue(result, int32, res);
 
   return result;
 }
 
-napi_value napiH3GetBaseCell(napi_env env, napi_callback_info info) {
-  napi_value argv[1];
-  size_t argc = 1;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
+napiFn(h3GetBaseCell) {
+  napiArgs(1);
+  napiGetH3Index(0, h3String, h3);
 
   int baseCell = h3GetBaseCell(h3);
 
-  napi_value result;
-  if (napi_create_int32(env, baseCell, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create base cell integer");
-  }
+  napiStoreValue(result, int32, baseCell);
 
   return result;
 }
 
-napi_value napiH3IsValid(napi_env env, napi_callback_info info) {
-  napi_value argv[1];
-  size_t argc = 1;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
+napiFn(h3IsValid) {
+  napiArgs(1);
+  napiGetH3Index(0, h3String, h3);
 
   int isValid = h3IsValid(h3);
 
-  napi_value result;
-  if (napi_get_boolean(env, isValid, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create boolean");
-  }
+  napiStoreBool(result, isValid);
 
   return result;
 }
 
-napi_value napiH3IsResClassIII(napi_env env, napi_callback_info info) {
-  napi_value argv[1];
-  size_t argc = 1;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
+napiFn(h3IsResClassIII) {
+  napiArgs(1);
+  napiGetH3Index(0, h3String, h3);
 
   int isResClassIII = h3IsResClassIII(h3);
 
-  napi_value result;
-  if (napi_get_boolean(env, isResClassIII, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create boolean");
-  }
+  napiStoreBool(result, isResClassIII);
 
   return result;
 }
 
-napi_value napiH3IsPentagon(napi_env env, napi_callback_info info) {
-  napi_value argv[1];
-  size_t argc = 1;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
+napiFn(h3IsPentagon) {
+  napiArgs(1);
+  napiGetH3Index(0, h3String, h3);
 
   int isPentagon = h3IsPentagon(h3);
 
-  napi_value result;
-  if (napi_get_boolean(env, isPentagon, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create boolean");
-  }
+  napiStoreBool(result, isPentagon);
 
   return result;
 }
@@ -324,63 +202,23 @@ napi_value napiH3IsPentagon(napi_env env, napi_callback_info info) {
 // Traversal Functions                                                       //
 ///////////////////////////////////////////////////////////////////////////////
 
-napi_value napiKRing(napi_env env, napi_callback_info info) {
-  napi_value argv[2];
-  size_t argc = 2;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
-
-  int k;
-
-  if (napi_get_value_int32(env, argv[1], &k) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected integer k radius");
-    return NULL;
-  }
+napiFn(kRing) {
+  napiArgs(2);
+  napiGetH3Index(0, h3String, h3);
+  napiGetValue(1, int32, int, k);
 
   int maxSize = maxKringSize(k);
-
   H3Index* kRingOut = calloc(maxSize, sizeof(H3Index));
-
   kRing(h3, k, kRingOut);
 
-  napi_value result;
-
-  if (napi_create_array(env, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create return array");
-  }
-
   int arrayIndex = 0;
-
+  napiVarArray(result);
   for (int i = 0; i < maxSize; i++) {
-    char h3ValStr[17];
-    napi_value h3Val;
-
     if (kRingOut[i] == 0) continue;
 
-    h3ToString(kRingOut[i], h3ValStr, 17);
-
-    if (napi_create_string_utf8(env, h3ValStr, 15, &h3Val) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not write H3 string");
-    }
-
-    if (napi_set_element(env, result, arrayIndex, h3Val) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not store H3 string in array");
-    }
+    H3Index h3Num = kRingOut[i];
+    napiStoreH3Index(h3Num, h3Val);
+    napiSetNapiValue(result, arrayIndex, h3Val);
 
     arrayIndex++;
   }
@@ -390,83 +228,32 @@ napi_value napiKRing(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value napiKRingDistances(napi_env env, napi_callback_info info) {
-  napi_value argv[2];
-  size_t argc = 2;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
-
-  int k;
-
-  if (napi_get_value_int32(env, argv[1], &k) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected integer k radius");
-    return NULL;
-  }
+napiFn(kRingDistances) {
+  napiArgs(2);
+  napiGetH3Index(0, h3String, h3);
+  napiGetValue(1, int32, int, k);
 
   int maxSize = maxKringSize(k);
-
   H3Index* kRingOut = calloc(maxSize, sizeof(H3Index));
   int* distances = calloc(maxSize, sizeof(int));
-
   kRingDistances(h3, k, kRingOut, distances);
 
-  napi_value result;
-
-  if (napi_create_array(env, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create return array");
-  }
-
+  napiVarArray(result);
   for (int i = 0; i < k + 1; i++) {
-    napi_value ring;
-
-    if (napi_create_array(env, &ring) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not create return ring array");
-    }
-
-    if (napi_set_element(env, result, i, ring) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not put ring array in array");
-    }
+    napiVarArray(ring);
+    napiSetNapiValue(result, i, ring);
   }
 
   int* arrayIndices = calloc(k + 1, sizeof(int));
 
   for (int i = 0; i < maxSize; i++) {
-    char h3ValStr[17];
-    napi_value h3Val;
-    int ring;
-    napi_value ringArray;
-
     if (kRingOut[i] == 0) continue;
 
-    h3ToString(kRingOut[i], h3ValStr, 17);
-    ring = distances[i];
-
-    if (napi_create_string_utf8(env, h3ValStr, 15, &h3Val) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not write H3 string");
-    }
-
-    if (napi_get_element(env, result, ring, &ringArray) != napi_ok) {
-      napi_throw_error(env, "EINVAL", "Could not get ring array from array");
-    }
-
-    if (napi_set_element(env, ringArray, arrayIndices[ring], h3Val) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not store H3 string in array");
-    }
+    H3Index h3Num = kRingOut[i];
+    int ring = distances[i];
+    napiStoreH3Index(h3Num, h3Val);
+    napiGetNapiValue(result, ring, ringArray);
+    napiSetNapiValue(ringArray, arrayIndices[ring], h3Val);
 
     arrayIndices[ring]++;
   }
@@ -478,65 +265,25 @@ napi_value napiKRingDistances(napi_env env, napi_callback_info info) {
   return result;
 }
 
-napi_value napiHexRing(napi_env env, napi_callback_info info) {
-  napi_value argv[2];
-  size_t argc = 2;
-
-  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);
-
-  if (argc < 1) {
-    napi_throw_error(env, "EINVAL", "Too few arguments");
-    return NULL;
-  }
-
-  char h3String[17];
-  size_t writeCount;
-
-  if (napi_get_value_string_utf8(env, argv[0], h3String, 17, &writeCount) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected string h3 index");
-    return NULL;
-  }
-
-  H3Index h3 = stringToH3(h3String);
-
-  int k;
-
-  if (napi_get_value_int32(env, argv[1], &k) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected integer k radius");
-    return NULL;
-  }
+napiFn(hexRing) {
+  napiArgs(2);
+  napiGetH3Index(0, h3String, h3);
+  napiGetValue(1, int32, int, k);
 
   int maxSize = k == 0 ? 1 : 6 * k;
-
   H3Index* hexRingOut = calloc(maxSize, sizeof(H3Index));
-
   if (hexRing(h3, k, hexRingOut) != 0) {
     napi_throw_error(env, "EINVAL", "Pentagon encountered in range of ring");
   }
 
-  napi_value result;
-
-  if (napi_create_array(env, &result) != napi_ok) {
-    napi_throw_error(env, "ENOSPC", "Could not create return array");
-  }
-
   int arrayIndex = 0;
-
+  napiVarArray(result);
   for (int i = 0; i < maxSize; i++) {
-    char h3ValStr[17];
-    napi_value h3Val;
-
     if (hexRingOut[i] == 0) continue;
 
-    h3ToString(hexRingOut[i], h3ValStr, 17);
-
-    if (napi_create_string_utf8(env, h3ValStr, 15, &h3Val) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not write H3 string");
-    }
-
-    if (napi_set_element(env, result, arrayIndex, h3Val) != napi_ok) {
-      napi_throw_error(env, "ENOSPC", "Could not store H3 string in array");
-    }
+    H3Index h3Num = hexRingOut[i];
+    napiStoreH3Index(h3Num, h3Val);
+    napiSetNapiValue(result, arrayIndex, h3Val);
 
     arrayIndex++;
   }
@@ -551,53 +298,22 @@ napi_value napiHexRing(napi_env env, napi_callback_info info) {
 ///////////////////////////////////////////////////////////////////////////////
 
 napi_value init_all (napi_env env, napi_value exports) {
-
   // Indexing Functions
-  napi_value geoToH3Fn;
-  napi_create_function(env, NULL, 0, napiGeoToH3, NULL, &geoToH3Fn);
-  napi_set_named_property(env, exports, "geoToH3", geoToH3Fn);
-
-  napi_value h3ToGeoFn;
-  napi_create_function(env, NULL, 0, napiH3ToGeo, NULL, &h3ToGeoFn);
-  napi_set_named_property(env, exports, "h3ToGeo", h3ToGeoFn);
-
-  napi_value h3ToGeoBoundaryFn;
-  napi_create_function(env, NULL, 0, napiH3ToGeoBoundary, NULL, &h3ToGeoBoundaryFn);
-  napi_set_named_property(env, exports, "h3ToGeoBoundary", h3ToGeoBoundaryFn);
+  napiExport(geoToH3);
+  napiExport(h3ToGeo);
+  napiExport(h3ToGeoBoundary);
 
   // Inspection Functions
-  napi_value h3GetResolutionFn;
-  napi_create_function(env, NULL, 0, napiH3GetResolution, NULL, &h3GetResolutionFn);
-  napi_set_named_property(env, exports, "h3GetResolution", h3GetResolutionFn);
-
-  napi_value h3GetBaseCellFn;
-  napi_create_function(env, NULL, 0, napiH3GetBaseCell, NULL, &h3GetBaseCellFn);
-  napi_set_named_property(env, exports, "h3GetBaseCell", h3GetBaseCellFn);
-
-  napi_value h3IsValidFn;
-  napi_create_function(env, NULL, 0, napiH3IsValid, NULL, &h3IsValidFn);
-  napi_set_named_property(env, exports, "h3IsValid", h3IsValidFn);
-
-  napi_value h3IsResClassIIIFn;
-  napi_create_function(env, NULL, 0, napiH3IsResClassIII, NULL, &h3IsResClassIIIFn);
-  napi_set_named_property(env, exports, "h3IsResClassIII", h3IsResClassIIIFn);
-
-  napi_value h3IsPentagonFn;
-  napi_create_function(env, NULL, 0, napiH3IsPentagon, NULL, &h3IsPentagonFn);
-  napi_set_named_property(env, exports, "h3IsPentagon", h3IsPentagonFn);
+  napiExport(h3GetResolution);
+  napiExport(h3GetBaseCell);
+  napiExport(h3IsValid);
+  napiExport(h3IsResClassIII);
+  napiExport(h3IsPentagon);
 
   // Traversal Functions
-  napi_value kRingFn;
-  napi_create_function(env, NULL, 0, napiKRing, NULL, &kRingFn);
-  napi_set_named_property(env, exports, "kRing", kRingFn);
-
-  napi_value kRingDistancesFn;
-  napi_create_function(env, NULL, 0, napiKRingDistances, NULL, &kRingDistancesFn);
-  napi_set_named_property(env, exports, "kRingDistances", kRingDistancesFn);
-
-  napi_value hexRingFn;
-  napi_create_function(env, NULL, 0, napiHexRing, NULL, &hexRingFn);
-  napi_set_named_property(env, exports, "hexRing", hexRingFn);
+  napiExport(kRing);
+  napiExport(kRingDistances);
+  napiExport(hexRing);
 
   return exports;
 }
