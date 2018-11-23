@@ -126,6 +126,23 @@ exportTest('h3Distance', () => h3node
     if (this.count === 0) return false
     return Math.random() < 0.5
   }, { count: 2 }), simpleTest)
+exportTest('experimentalH3ToLocalIj', () => h3node
+  .kRing(h3node.geoToH3(...randCoords(), 9), 5)
+  .filter(function(h, i, a) {
+    if (a.length - i === this.count) {
+      this.count--
+      return true
+    }
+    if (this.count === 0) return false
+    return Math.random() < 0.5
+  }, { count: 2 }), allowPentagonTest)
+exportTest('experimentalLocalIjToH3', () => [
+  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+  {
+    i: Math.floor(Math.random() * 5 + 1),
+    j: Math.floor(Math.random() * 5 + 1),
+  },
+], allowPentagonTest);
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -167,3 +184,20 @@ exportBenchmark('h3Distance', () => h3node
     if (this.count === 0) return false
     return Math.random() < 0.5
   }, { count: 2, }))
+exportBenchmark('experimentalH3ToLocalIj', () => h3node
+  .kRing(h3node.geoToH3(...randCoords(), 9), 5)
+  .filter(function(h, i, a) {
+    if (a.length - i === this.count) {
+      this.count--
+      return true
+    }
+    if (this.count === 0) return false
+    return Math.random() < 0.5
+  }, { count: 2, }))
+exportBenchmark('experimentalLocalIjToH3', () => [
+  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+  {
+    i: Math.floor(Math.random() * 5 + 1),
+    j: Math.floor(Math.random() * 5 + 1),
+  },
+], true);
