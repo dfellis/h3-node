@@ -58,7 +58,7 @@ const hexDistance h3.h3Distance(h3index, h3.geoToH3(38.88, -122.34, 9))
 Being 100% javascript it works across the entire Javascript ecosystem (especially when paired with browserify or babel to handle the Node-isms for non-Node JS environments), but that portability comes at a cost in performance. Preliminary benchmarks show a significant speedup with the N-API approach:
 
 ```
-damocles@Talyn:~/oss/h3-node(h3-distance)$ yarn test
+damocles@Talyn:~/oss/h3-node(master)$ yarn test
 yarn run v1.12.3
 $ nodeunit test
 
