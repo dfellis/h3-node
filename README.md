@@ -48,7 +48,7 @@ const isPentagon = h3.h3IsPentagon(h3index)
 const neighbors = h3.kRing(h3index, 1)
 const threeRings = h3.kRingDistances(h3index, 3)
 const ring2Away = h3.hexRing(h3index, 2)
-const hexDistance h3.h3Distance(h3index, h3.geoToH3(38.88, -122.34, 9))
+const hexDistance = h3.h3Distance(h3index, h3.geoToH3(38.88, -122.34, 9))
 ```
 
 ## Why another H3 for Node?
