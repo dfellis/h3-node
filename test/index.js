@@ -143,6 +143,10 @@ exportTest('experimentalLocalIjToH3', () => [
     j: Math.floor(Math.random() * 5 + 1),
   },
 ], allowPentagonTest);
+exportTest('h3ToParent', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.floor(Math.random() * 9),
+], simpleTest)
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -201,3 +205,8 @@ exportBenchmark('experimentalLocalIjToH3', () => [
     j: Math.floor(Math.random() * 5 + 1),
   },
 ], true);
+exportBenchmark('h3ToParent', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.floor(Math.random() * 9),
+])
+

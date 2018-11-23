@@ -397,6 +397,22 @@ napiFn(experimentalLocalIjToH3) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Hierarchy Functions                                                       //
+///////////////////////////////////////////////////////////////////////////////
+
+napiFn(h3ToParent) {
+  napiArgs(2);
+  napiGetH3Index(0, h3);
+  napiGetValue(1, int32, int, res);
+
+  H3Index h3Parent = h3ToParent(h3, res);
+
+  napiStoreH3Index(h3Parent, result);
+
+  return result;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -420,6 +436,9 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(h3Distance);
   napiExport(experimentalH3ToLocalIj);
   napiExport(experimentalLocalIjToH3);
+
+  // Hierarchy Functions
+  napiExport(h3ToParent);
 
   return exports;
 }
