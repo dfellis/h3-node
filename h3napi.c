@@ -15,6 +15,9 @@
     return NULL;\
   }
 
+#define napiGetNapiArg(I, N) \
+  napi_value N = argv[I];
+
 #define napiGetValue(I, J, T, N) \
   T N;\
   if (napi_get_value_ ## J(env, argv[I], (T *) &N) != napi_ok) {\
@@ -26,6 +29,7 @@
   napi_value N;\
   if (napi_get_element(env, A, I, &N) != napi_ok) {\
     napi_throw_error(env, "EINVAL", "Could not get element from array at index " #I);\
+    return NULL;\
   }
 
 #define napiGetH3Index(I, O) \
@@ -34,6 +38,7 @@
   \
   if (napi_get_value_string_utf8(env, argv[I], O ## Str, 17, &O ## StrCount) != napi_ok) {\
     napi_throw_error(env, "EINVAL", "Expected string h3 index in arg " #I);\
+    return NULL;\
   }\
   \
   H3Index O = stringToH3(O ## Str);
@@ -42,17 +47,20 @@
   napi_value V;\
   if (napi_create_array_with_length(env, L, &V) != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not create fixed length array");\
+    return NULL;\
   }
 
 #define napiVarArray(V) \
   napi_value V;\
   if (napi_create_array(env, &V) != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not create variable array");\
+    return NULL;\
   }
 
 #define napiSetNapiValue(A, I, N) \
   if (napi_set_element(env, A, I, N) != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not store " #N " in array");\
+    return NULL;\
   }
 
 #define napiSetValue(A, I, J, V, N) \
@@ -60,6 +68,7 @@
   \
   if (napi_create_ ## J(env, V, &N) != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not write " #N #J);\
+    return NULL;\
   }\
   napiSetNapiValue(A, I, N);
 
@@ -69,18 +78,50 @@
   napi_value O;\
   if (napi_create_string_utf8(env, V ## String, 15, &O) != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not write H3 string");\
+    return NULL;\
   }
 
 #define napiStoreValue(N, T, V) \
   napi_value N;\
   if (napi_create_ ## T(env, V, &N) != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not create " #N);\
+    return NULL;\
   }
 
 #define napiStoreBool(N, V) \
   napi_value N;\
   if (napi_get_boolean(env, V, &N) != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not create boolean");\
+    return NULL;\
+  }
+
+#define napiObject(O) \
+  napi_value O;\
+  if (napi_create_object(env, &O) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not create object");\
+    return NULL;\
+  }
+
+#define napiStoreNapiInObject(O, N, V) \
+  napi_set_named_property(env, O, N, V);
+
+#define napiStoreInObject(O, N, T, V) \
+  napi_value N;\
+  if (napi_create_ ## T(env, V, &N) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not create " #N);\
+    return NULL;\
+  }\
+  napiStoreNapiInObject(O, #N, N);
+
+#define napiGetFromObject(O, N, T, R) \
+  napi_value N;\
+  if (napi_get_named_property(env, O, #N, &N) != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not retrieve " #N);\
+    return NULL;\
+  }\
+  if (napi_get_value_ ## T(env, N, R) != napi_ok) {\
+    napi_throw_error(env, "EINVAL", "Expected " #N " in object");\
+    return NULL;\
   }
 
 #define napiExport(N) \
@@ -305,6 +346,56 @@ napiFn(h3Distance) {
   return result;
 }
 
+napiFn(experimentalH3ToLocalIj) {
+  napiArgs(2);
+  napiGetH3Index(0, origin);
+  napiGetH3Index(1, destination);
+
+  CoordIJ ij = { 0 };
+  int errorCode = experimentalH3ToLocalIj(origin, destination, &ij);
+  switch (errorCode) {
+    case 0:
+      break;
+    case 1:
+      napi_throw_error(env, "EINVAL", "Incompatible origin and index");
+      return NULL;
+    case 2:
+    default:
+      napi_throw_error(env, "EINVAL", "Local IJ coordinates undefined for this origin and index"
+        " pair. The index may be too far from the origin.");
+      return NULL;
+    case 3:
+    case 4:
+    case 5:
+      napi_throw_error(env, "EINVAL", "Encountered possible pentagon distortion.");
+      return NULL;
+  }
+  napiObject(result);
+  napiStoreInObject(result, i, int32, ij.i);
+  napiStoreInObject(result, j, int32, ij.j);
+  return result;
+}
+
+napiFn(experimentalLocalIjToH3) {
+  napiArgs(2);
+  napiGetH3Index(0, origin);
+  napiGetNapiArg(1, coords);
+
+  CoordIJ ij = { 0 };
+  H3Index h3;
+  napiGetFromObject(coords, i, int32, &ij.i);
+  napiGetFromObject(coords, j, int32, &ij.j);
+  int errorCode = experimentalLocalIjToH3(origin, &ij, &h3);
+  if (errorCode != 0) {
+    napi_throw_error(env, "EINVAL", "Index not defined for this origin and IJ coordinate pair. "
+      "IJ coordinates may be too far from origin, or a pentagon distortion was encountered.");
+    return NULL;
+  }
+  napiStoreH3Index(h3, result);
+
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -327,6 +418,8 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(kRingDistances);
   napiExport(hexRing);
   napiExport(h3Distance);
+  napiExport(experimentalH3ToLocalIj);
+  napiExport(experimentalLocalIjToH3);
 
   return exports;
 }
