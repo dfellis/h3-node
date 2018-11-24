@@ -27,10 +27,11 @@
 
 #define napiGetNapiValue(A, I, N) \
   napi_value N;\
-  if (napi_get_element(env, A, I, &N) != napi_ok) {\
+  napi_status napiGetNapiValue ## N = napi_get_element(env, A, I, &N);\
+  if (napiGetNapiValue ## N != napi_ok) {\
     napi_throw_error(env, "EINVAL", "Could not get element from array at index " #I);\
-    return NULL;\
-  }
+  }\
+  if (napiGetNapiValue ## N != napi_ok)
 
 #define napiGetH3Index(I, O) \
   char O ## Str[17];\
@@ -52,16 +53,18 @@
 
 #define napiVarArray(V) \
   napi_value V;\
-  if (napi_create_array(env, &V) != napi_ok) {\
+  napi_status napiVarArray ## V = napi_create_array(env, &V);\
+  if (napiVarArray ## V != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not create variable array");\
-    return NULL;\
-  }
+  }\
+  if (napiVarArray ## V != napi_ok)
 
 #define napiSetNapiValue(A, I, N) \
-  if (napi_set_element(env, A, I, N) != napi_ok) {\
+  napi_status napiSetNapiValue ## N = napi_set_element(env, A, I, N);\
+  if (napiSetNapiValue ## N != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not store " #N " in array");\
-    return NULL;\
-  }
+  }\
+  if (napiSetNapiValue ## N != napi_ok)
 
 #define napiSetValue(A, I, J, V, N) \
   napi_value N;\
@@ -76,10 +79,11 @@
   char V ## String[17];\
   h3ToString(V, V ## String, 17);\
   napi_value O;\
-  if (napi_create_string_utf8(env, V ## String, 15, &O) != napi_ok) {\
+  napi_status napiStoreH3Index ## V = napi_create_string_utf8(env, V ## String, 15, &O);\
+  if (napiStoreH3Index ## V != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not write H3 string");\
-    return NULL;\
-  }
+  }\
+  if (napiStoreH3Index ## V != napi_ok)
 
 #define napiStoreValue(N, T, V) \
   napi_value N;\
@@ -253,13 +257,22 @@ napiFn(kRing) {
   kRing(h3, k, kRingOut);
 
   int arrayIndex = 0;
-  napiVarArray(result);
+  napiVarArray(result) {
+    free(kRingOut);
+    return NULL;
+  }
   for (int i = 0; i < maxSize; i++) {
     if (kRingOut[i] == 0) continue;
 
     H3Index h3Num = kRingOut[i];
-    napiStoreH3Index(h3Num, h3Val);
-    napiSetNapiValue(result, arrayIndex, h3Val);
+    napiStoreH3Index(h3Num, h3Val) {
+      free(kRingOut);
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, h3Val) {
+      free(kRingOut);
+      return NULL;
+    }
 
     arrayIndex++;
   }
@@ -279,10 +292,22 @@ napiFn(kRingDistances) {
   int* distances = calloc(maxSize, sizeof(int));
   kRingDistances(h3, k, kRingOut, distances);
 
-  napiVarArray(result);
+  napiVarArray(result) {
+    free(distances);
+    free(kRingOut);
+    return NULL;
+  }
   for (int i = 0; i < k + 1; i++) {
-    napiVarArray(ring);
-    napiSetNapiValue(result, i, ring);
+    napiVarArray(ring) {
+      free(distances);
+      free(kRingOut);
+      return NULL;
+    }
+    napiSetNapiValue(result, i, ring) {
+      free(distances);
+      free(kRingOut);
+      return NULL;
+    }
   }
 
   int* arrayIndices = calloc(k + 1, sizeof(int));
@@ -292,9 +317,24 @@ napiFn(kRingDistances) {
 
     H3Index h3Num = kRingOut[i];
     int ring = distances[i];
-    napiStoreH3Index(h3Num, h3Val);
-    napiGetNapiValue(result, ring, ringArray);
-    napiSetNapiValue(ringArray, arrayIndices[ring], h3Val);
+    napiStoreH3Index(h3Num, h3Val) {
+      free(arrayIndices);
+      free(distances);
+      free(kRingOut);
+      return NULL;
+    }
+    napiGetNapiValue(result, ring, ringArray) {
+      free(arrayIndices);
+      free(distances);
+      free(kRingOut);
+      return NULL;
+    }
+    napiSetNapiValue(ringArray, arrayIndices[ring], h3Val) {
+      free(arrayIndices);
+      free(distances);
+      free(kRingOut);
+      return NULL;
+    }
 
     arrayIndices[ring]++;
   }
@@ -318,13 +358,22 @@ napiFn(hexRing) {
   }
 
   int arrayIndex = 0;
-  napiVarArray(result);
+  napiVarArray(result) {
+    free(hexRingOut);
+    return NULL;
+  }
   for (int i = 0; i < maxSize; i++) {
     if (hexRingOut[i] == 0) continue;
 
     H3Index h3Num = hexRingOut[i];
-    napiStoreH3Index(h3Num, h3Val);
-    napiSetNapiValue(result, arrayIndex, h3Val);
+    napiStoreH3Index(h3Num, h3Val) {
+      free(hexRingOut);
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, h3Val) {
+      free(hexRingOut);
+      return NULL;
+    }
 
     arrayIndex++;
   }
