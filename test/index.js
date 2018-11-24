@@ -147,6 +147,10 @@ exportTest('h3ToParent', () => [
   h3node.geoToH3(...randCoords(), 9),
   Math.floor(Math.random() * 9),
 ], simpleTest)
+exportTest('h3ToChildren', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.floor(15 - Math.random() * 6),
+], simpleTest)
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -208,5 +212,9 @@ exportBenchmark('experimentalLocalIjToH3', () => [
 exportBenchmark('h3ToParent', () => [
   h3node.geoToH3(...randCoords(), 9),
   Math.floor(Math.random() * 9),
+])
+exportBenchmark('h3ToChildren', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.floor(15 - Math.random() * 6),
 ])
 

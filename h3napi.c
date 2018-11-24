@@ -461,6 +461,38 @@ napiFn(h3ToParent) {
   return result;
 }
 
+napiFn(h3ToChildren) {
+  napiArgs(2);
+  napiGetH3Index(0, h3);
+  napiGetValue(1, int32, int, res);
+
+  int maxSize = maxH3ToChildrenSize(h3, res);
+  H3Index* children = calloc(maxSize, sizeof(H3Index));
+  h3ToChildren(h3, res, children);
+
+  napiVarArray(result) {
+    free(children);
+    return NULL;
+  }
+  int arrayIndex = 0;
+  for (int i = 0; i < maxSize; i++) {
+    H3Index child = children[i];
+    if (child == 0) continue;
+    napiStoreH3Index(child, childObj) {
+      free(children);
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, childObj) {
+      free(children);
+      return NULL;
+    }
+    arrayIndex++;
+  }
+  
+  free(children);
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -488,6 +520,7 @@ napi_value init_all (napi_env env, napi_value exports) {
 
   // Hierarchy Functions
   napiExport(h3ToParent);
+  napiExport(h3ToChildren);
 
   return exports;
 }
