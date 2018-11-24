@@ -36,6 +36,8 @@ When fully implemented, it will be a drop-in replacement for [H3-js](https://git
 * `experimentalLocalIjToH3`
 * `h3ToParent`
 * `h3ToChildren`
+* `compact`
+* `uncompact`
 
 ```js
 const h3 = require('h3-node')
@@ -58,6 +60,8 @@ const coords = h3.experimentalH3ToLocalIj(h3index, index2)
 const index2again = h3.experimentalLocalIjToH3(h3index, coords)
 const parent = h3.h3ToParent(h3index, 8)
 const immediateChildren = h3.h3ToParent(h3index, 10)
+const packedRings = h3.compact(threeRings);
+const unpackedRings = h3.uncompact(packedRings, 9);
 ```
 
 ## Why another H3 for Node?
@@ -72,7 +76,7 @@ yarn run v1.12.3
 $ nodeunit test
 
 index
-(node:14834) Warning: N-API is an experimental feature and could change at any time.
+(node:12397) Warning: N-API is an experimental feature and could change at any time.
 ✔ geoToH3
 ✔ h3ToGeo
 ✔ h3ToGeoBoundary
@@ -89,89 +93,101 @@ index
 ✔ experimentalLocalIjToH3
 ✔ h3ToParent
 ✔ h3ToChildren
+✔ compact
+✔ uncompact
 
 geoToH3 Benchmark:
-H3-js time in ns:    33243888
-H3-node time in ns:  4076163
+H3-js time in ns:    49106584
+H3-node time in ns:  4967537
 ✔ geoToH3Benchmark
 
 h3ToGeo Benchmark:
-H3-js time in ns:    14828351
-H3-node time in ns:  2221108
+H3-js time in ns:    20150637
+H3-node time in ns:  4324002
 ✔ h3ToGeoBenchmark
 
 h3ToGeoBoundary Benchmark:
-H3-js time in ns:    18625725
-H3-node time in ns:  7798665
+H3-js time in ns:    27278168
+H3-node time in ns:  11290327
 ✔ h3ToGeoBoundaryBenchmark
 
 h3GetResolution Benchmark:
-H3-js time in ns:    408139
-H3-node time in ns:  821942
+H3-js time in ns:    309615
+H3-node time in ns:  791154
 ✔ h3GetResolutionBenchmark
 
 h3GetBaseCell Benchmark:
-H3-js time in ns:    453733
-H3-node time in ns:  431170
+H3-js time in ns:    590163
+H3-node time in ns:  632718
 ✔ h3GetBaseCellBenchmark
 
 h3IsValid Benchmark:
-H3-js time in ns:    1780129
-H3-node time in ns:  391204
+H3-js time in ns:    3005719
+H3-node time in ns:  816859
 ✔ h3IsValidBenchmark
 
 h3IsResClassIII Benchmark:
-H3-js time in ns:    511371
-H3-node time in ns:  428339
+H3-js time in ns:    836442
+H3-node time in ns:  745348
 ✔ h3IsResClassIIIBenchmark
 
 h3IsPentagon Benchmark:
-H3-js time in ns:    552370
-H3-node time in ns:  421649
+H3-js time in ns:    915376
+H3-node time in ns:  727923
 ✔ h3IsPentagonBenchmark
 
 kRing Benchmark:
-H3-js time in ns:    281861259
-H3-node time in ns:  79715574
+H3-js time in ns:    407497809
+H3-node time in ns:  115645440
 ✔ kRingBenchmark
 
 kRingDistances Benchmark:
-H3-js time in ns:    265195634
-H3-node time in ns:  98446070
+H3-js time in ns:    468538050
+H3-node time in ns:  149163052
 ✔ kRingDistancesBenchmark
 
 hexRing Benchmark:
-H3-js time in ns:    31110791
-H3-node time in ns:  20226320
+H3-js time in ns:    42158992
+H3-node time in ns:  26346733
 ✔ hexRingBenchmark
 
 h3Distance Benchmark:
-H3-js time in ns:    5120803
-H3-node time in ns:  1645116
+H3-js time in ns:    8952678
+H3-node time in ns:  2991154
 ✔ h3DistanceBenchmark
 
 experimentalH3ToLocalIj Benchmark:
-H3-js time in ns:    5470204
-H3-node time in ns:  2097686
+H3-js time in ns:    4499860
+H3-node time in ns:  3223258
 ✔ experimentalH3ToLocalIjBenchmark
 
 experimentalLocalIjToH3 Benchmark:
-H3-js time in ns:    19231678
-H3-node time in ns:  2532033
+H3-js time in ns:    21323035
+H3-node time in ns:  4464944
 ✔ experimentalLocalIjToH3Benchmark
 
 h3ToParent Benchmark:
-H3-js time in ns:    1931962
-H3-node time in ns:  931389
+H3-js time in ns:    3724377
+H3-node time in ns:  1328033
 ✔ h3ToParentBenchmark
 
 h3ToChildren Benchmark:
-H3-js time in ns:    1523276588
-H3-node time in ns:  2302017602
+H3-js time in ns:    3025301782
+H3-node time in ns:  2865750569
 ✔ h3ToChildrenBenchmark
 
-OK: 160 assertions (5181ms)
-Done in 5.44s.
+compact Benchmark:
+H3-js time in ns:    462037226
+H3-node time in ns:  100870860
+✔ compactBenchmark
+
+uncompact Benchmark:
+H3-js time in ns:    148032553
+H3-node time in ns:  107898742
+✔ uncompactBenchmark
+
+OK: 180 assertions (9053ms)
+Done in 9.69s.
 ```
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.

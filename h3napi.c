@@ -44,6 +44,16 @@
   \
   H3Index O = stringToH3(O ## Str);
 
+#define napiGetNapiH3Index(I, O) \
+  char O ## Str[17];\
+  size_t O ## StrCount;\
+  napi_status napiGetNapiH3Index ## I = napi_get_value_string_utf8(env, I, O ## Str, 17, &O ## StrCount);\
+  if (napiGetNapiH3Index ## I != napi_ok) {\
+    napi_throw_error(env, "EINVAL", "Expected string h3 index in arg " #I);\
+  }\
+  H3Index O = stringToH3(O ## Str);\
+  if (napiGetNapiH3Index ## I != napi_ok)
+
 #define napiFixedArray(V, L) \
   napi_value V;\
   if (napi_create_array_with_length(env, L, &V) != napi_ok) {\
@@ -493,6 +503,120 @@ napiFn(h3ToChildren) {
   return result;
 }
 
+napiFn(compact) {
+  napiArgs(1);
+  napiGetNapiArg(0, h3IndexArrayObj);
+  uint32_t arrayLen;
+  if (napi_get_array_length(env, h3IndexArrayObj, &arrayLen) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected an array of h3 indexes");
+    return NULL;
+  }
+  H3Index* uncompactedArray = calloc(arrayLen, sizeof(H3Index));
+  H3Index* compactedArray = calloc(arrayLen, sizeof(H3Index));
+  for (int i = 0; i < arrayLen; i++) {
+    napiGetNapiValue(h3IndexArrayObj, i, h3IndexObj) {
+      free(uncompactedArray);
+      free(compactedArray);
+      return NULL;
+    }
+    napiGetNapiH3Index(h3IndexObj, h3Index) {
+      free(uncompactedArray);
+      free(compactedArray);
+      return NULL;
+    }
+    uncompactedArray[i] = h3Index;
+  }
+  int errorCode = compact(uncompactedArray, compactedArray, arrayLen);
+  if (errorCode != 0) {
+    napi_throw_error(env, "EINVAL", "Unexpected non-hexagon in provided set");
+    free(compactedArray);
+    free(uncompactedArray);
+    return NULL;
+  }
+  napiVarArray(result) {
+    free(compactedArray);
+    free(uncompactedArray);
+    return NULL;
+  }
+  int arrayIndex = 0;
+  for (int i = 0; i < arrayLen; i++) {
+    H3Index compacted = compactedArray[i];
+    if (compacted == 0) continue;
+    napiStoreH3Index(compacted, compactedObj) {
+      free(compactedArray);
+      free(uncompactedArray);
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, compactedObj) {
+      free(compactedArray);
+      free(uncompactedArray);
+      return NULL;
+    }
+    arrayIndex++;
+  }
+
+  free(compactedArray);
+  free(uncompactedArray);
+  return result;
+}
+
+napiFn(uncompact) {
+  napiArgs(2);
+  napiGetNapiArg(0, h3IndexArrayObj);
+  napiGetValue(1, int32, int, res);
+  uint32_t arrayLen;
+  if (napi_get_array_length(env, h3IndexArrayObj, &arrayLen) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected an array of h3 indexes");
+    return NULL;
+  }
+  H3Index* compactedArray = calloc(arrayLen, sizeof(H3Index));
+  for (int i = 0; i < arrayLen; i++) {
+    napiGetNapiValue(h3IndexArrayObj, i, h3IndexObj) {
+      free(compactedArray);
+      return NULL;
+    }
+    napiGetNapiH3Index(h3IndexObj, h3Index) {
+      free(compactedArray);
+      return NULL;
+    }
+    compactedArray[i] = h3Index;
+  }
+  int maxSize = maxUncompactSize(compactedArray, arrayLen, res);
+  H3Index* uncompactedArray = calloc(maxSize, sizeof(H3Index));
+  int errorCode = uncompact(compactedArray, arrayLen, uncompactedArray, maxSize, res);
+  if (errorCode != 0) {
+    napi_throw_error(env, "EINVAL", "Unexpected non-hexagon in provided set");
+    free(compactedArray);
+    free(uncompactedArray);
+    return NULL;
+  }
+  napiVarArray(result) {
+    free(compactedArray);
+    free(uncompactedArray);
+    return NULL;
+  }
+  int arrayIndex = 0;
+  for (int i = 0; i < maxSize; i++) {
+    H3Index uncompacted = uncompactedArray[i];
+    if (uncompacted == 0) continue;
+    napiStoreH3Index(uncompacted, uncompactedObj) {
+      free(compactedArray);
+      free(uncompactedArray);
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, uncompactedObj) {
+      free(compactedArray);
+      free(uncompactedArray);
+      return NULL;
+    }
+    arrayIndex++;
+  }
+
+  free(compactedArray);
+  free(uncompactedArray);
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -521,6 +645,8 @@ napi_value init_all (napi_env env, napi_value exports) {
   // Hierarchy Functions
   napiExport(h3ToParent);
   napiExport(h3ToChildren);
+  napiExport(compact);
+  napiExport(uncompact);
 
   return exports;
 }
