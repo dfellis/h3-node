@@ -35,6 +35,7 @@ When fully implemented, it will be a drop-in replacement for [H3-js](https://git
 * `experimentalH3ToLocalIj`
 * `experimentalLocalIjToH3`
 * `h3ToParent`
+* `h3ToChildren`
 
 ```js
 const h3 = require('h3-node')
@@ -56,6 +57,7 @@ const hexDistance = h3.h3Distance(h3index, index2)
 const coords = h3.experimentalH3ToLocalIj(h3index, index2)
 const index2again = h3.experimentalLocalIjToH3(h3index, coords)
 const parent = h3.h3ToParent(h3index, 8)
+const immediateChildren = h3.h3ToParent(h3index, 10)
 ```
 
 ## Why another H3 for Node?
@@ -67,11 +69,10 @@ Being 100% javascript it works across the entire Javascript ecosystem (especiall
 ```
 damocles@Talyn:~/oss/h3-node(master)$ yarn test
 yarn run v1.12.3
- $ nodeunit test
+$ nodeunit test
 
 index
-(node:3071) Warning: N-API is an experimental feature and could cha
-nge at any time.
+(node:14834) Warning: N-API is an experimental feature and could change at any time.
 ✔ geoToH3
 ✔ h3ToGeo
 ✔ h3ToGeoBoundary
@@ -87,84 +88,90 @@ nge at any time.
 ✔ experimentalH3ToLocalIj
 ✔ experimentalLocalIjToH3
 ✔ h3ToParent
+✔ h3ToChildren
 
 geoToH3 Benchmark:
-H3-js time in ns:    43239733
-H3-node time in ns:  4747789
+H3-js time in ns:    33243888
+H3-node time in ns:  4076163
 ✔ geoToH3Benchmark
 
 h3ToGeo Benchmark:
-H3-js time in ns:    20007996
-H3-node time in ns:  4413625
+H3-js time in ns:    14828351
+H3-node time in ns:  2221108
 ✔ h3ToGeoBenchmark
 
 h3ToGeoBoundary Benchmark:
-H3-js time in ns:    26454384
-H3-node time in ns:  11884137
+H3-js time in ns:    18625725
+H3-node time in ns:  7798665
 ✔ h3ToGeoBoundaryBenchmark
 
 h3GetResolution Benchmark:
-H3-js time in ns:    296359
-H3-node time in ns:  694776
+H3-js time in ns:    408139
+H3-node time in ns:  821942
 ✔ h3GetResolutionBenchmark
 
 h3GetBaseCell Benchmark:
-H3-js time in ns:    948305
-H3-node time in ns:  570942
+H3-js time in ns:    453733
+H3-node time in ns:  431170
 ✔ h3GetBaseCellBenchmark
 
 h3IsValid Benchmark:
-H3-js time in ns:    3407996
-H3-node time in ns:  679873
+H3-js time in ns:    1780129
+H3-node time in ns:  391204
 ✔ h3IsValidBenchmark
 
 h3IsResClassIII Benchmark:
-H3-js time in ns:    712512
-H3-node time in ns:  658783
+H3-js time in ns:    511371
+H3-node time in ns:  428339
 ✔ h3IsResClassIIIBenchmark
 
 h3IsPentagon Benchmark:
-H3-js time in ns:    819034
-H3-node time in ns:  681757
+H3-js time in ns:    552370
+H3-node time in ns:  421649
 ✔ h3IsPentagonBenchmark
 
 kRing Benchmark:
-H3-js time in ns:    434077430
-H3-node time in ns:  117129944
+H3-js time in ns:    281861259
+H3-node time in ns:  79715574
 ✔ kRingBenchmark
 
 kRingDistances Benchmark:
-H3-js time in ns:    470949537
-H3-node time in ns:  146239284
+H3-js time in ns:    265195634
+H3-node time in ns:  98446070
 ✔ kRingDistancesBenchmark
 
 hexRing Benchmark:
-H3-js time in ns:    42250659
-H3-node time in ns:  26365566
+H3-js time in ns:    31110791
+H3-node time in ns:  20226320
 ✔ hexRingBenchmark
 
 h3Distance Benchmark:
-H3-js time in ns:    8674064
-H3-node time in ns:  2967930
+H3-js time in ns:    5120803
+H3-node time in ns:  1645116
 ✔ h3DistanceBenchmark
 
 experimentalH3ToLocalIj Benchmark:
-H3-js time in ns:    4716729
-H3-node time in ns:  3381926
+H3-js time in ns:    5470204
+H3-node time in ns:  2097686
 ✔ experimentalH3ToLocalIjBenchmark
 
 experimentalLocalIjToH3 Benchmark:
-H3-js time in ns:    22669141
-H3-node time in ns:  4135068
+H3-js time in ns:    19231678
+H3-node time in ns:  2532033
 ✔ experimentalLocalIjToH3Benchmark
 
 h3ToParent Benchmark:
-H3-js time in ns:    3708549
-H3-node time in ns:  1320960
+H3-js time in ns:    1931962
+H3-node time in ns:  931389
 ✔ h3ToParentBenchmark
 
-OK: 150 assertions (1828ms)
- Done in 2.46s.
+h3ToChildren Benchmark:
+H3-js time in ns:    1523276588
+H3-node time in ns:  2302017602
+✔ h3ToChildrenBenchmark
+
+OK: 160 assertions (5181ms)
+Done in 5.44s.
 ```
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.
