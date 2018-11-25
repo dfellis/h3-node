@@ -15,6 +15,17 @@
     return NULL;\
   }
 
+#define napiArgsWithOptional(N, M) \
+  napi_value argv[N + M];\
+  size_t argc = N + M;\
+  \
+  napi_get_cb_info(env, info, &argc, argv, NULL, NULL);\
+  \
+  if (argc < N) {\
+    napi_throw_error(env, "EINVAL", "Too few arguments");\
+    return NULL;\
+  }
+
 #define napiGetNapiArg(I, N) \
   napi_value N = argv[I];
 
@@ -24,6 +35,14 @@
     napi_throw_error(env, "EINVAL", "Expected " #J " in arg " #I);\
     return NULL;\
   }
+
+#define napiGet(V, J, T, N) \
+  T N;\
+  napi_status napiGet ## V ## N = napi_get_value_ ## J(env, V, &N);\
+  if (napiGet ## V ## N != napi_ok) {\
+    napi_throw_error(env, "EINVAL", "Could not get " #J " value from " #V);\
+  }\
+  if (napiGet ## V ## N != napi_ok)
 
 #define napiGetNapiValue(A, I, N) \
   napi_value N;\
@@ -618,6 +637,405 @@ napiFn(uncompact) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Region Functions                                                          //
+///////////////////////////////////////////////////////////////////////////////
+
+napiFn(polyfill) {
+  napiArgsWithOptional(2, 1);
+  napiGetNapiArg(0, geofenceArrayObj);
+  napiGetValue(1, int32, int, res);
+  napi_value isGeoJsonObj;
+  if (napi_coerce_to_bool(env, argv[2], &isGeoJsonObj) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Somehow cannot coerce a boolean?");
+    return NULL;
+  }
+  bool isGeoJson;
+  if (napi_get_value_bool(env, isGeoJsonObj, &isGeoJson) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Somehow cannot extract boolean from JS object");
+    return NULL;
+  }
+  napi_valuetype typepoke;
+  if (napi_typeof(env, geofenceArrayObj, &typepoke) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "No geofence array provided?");
+    return NULL;
+  }
+  if (typepoke != napi_object) {
+    napi_throw_error(env, "EINVAL", "Non-array value provided as geofence array.");
+    return NULL;
+  }
+  uint32_t arrayLength;
+  if (napi_get_array_length(env, geofenceArrayObj, &arrayLength) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
+    return NULL;
+  }
+  napiVarArray(result);
+  if (arrayLength == 0) return result;
+  napiGetNapiValue(geofenceArrayObj, 0, firstInnerArray);
+  if (napi_get_array_length(env, firstInnerArray, &arrayLength) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Could not read length of the first inner array");
+    return NULL;
+  }
+  if (arrayLength == 0) return result;
+  napiGetNapiValue(firstInnerArray, 0, nestingTest);
+  if (napi_typeof(env, nestingTest, &typepoke) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "No geofence data provided?");
+    return NULL;
+  }
+  GeoPolygon polygon = { 0 };
+  if (typepoke == napi_number) {
+    // Single polygon shape, no holes
+    polygon.numHoles = 0;
+    if (napi_get_array_length(env, geofenceArrayObj, &arrayLength) != napi_ok) {
+      napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
+      return NULL;
+    }
+    polygon.geofence.numVerts = arrayLength;
+    polygon.geofence.verts = calloc(arrayLength, sizeof(GeoCoord));
+    for (int i = 0; i < arrayLength; i++) {
+      napiGetNapiValue(geofenceArrayObj, i, latlngArray) {
+        free(polygon.geofence.verts);
+        return NULL;
+      }
+      napiGetNapiValue(latlngArray, 0, a) {
+        free(polygon.geofence.verts);
+        return NULL;
+      }
+      napiGetNapiValue(latlngArray, 1, b) {
+        free(polygon.geofence.verts);
+        return NULL;
+      }
+      if (isGeoJson) {
+        napiGet(b, double, double, lat) {
+          free(polygon.geofence.verts);
+          return NULL;
+        }
+        napiGet(a, double, double, lng) {
+          free(polygon.geofence.verts);
+          return NULL;
+        }
+        polygon.geofence.verts[i].lat = degsToRads(lat);
+        polygon.geofence.verts[i].lon = degsToRads(lng);
+      } else {
+        napiGet(a, double, double, lat) {
+          free(polygon.geofence.verts);
+          return NULL;
+        }
+        napiGet(b, double, double, lng) {
+          free(polygon.geofence.verts);
+          return NULL;
+        }
+        polygon.geofence.verts[i].lat = degsToRads(lat);
+        polygon.geofence.verts[i].lon = degsToRads(lng);
+      }
+    }
+  } else {
+    // Multiple polygon shapes, has holes
+    if (napi_get_array_length(env, geofenceArrayObj, &arrayLength) != napi_ok) {
+      napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
+      return NULL;
+    }
+    polygon.numHoles = arrayLength - 1;
+    polygon.holes = calloc(polygon.numHoles, sizeof(Geofence));
+    for (int i = 0; i < arrayLength; i++) {
+      napiGetNapiValue(geofenceArrayObj, i, polygonArray) {
+        if (polygon.geofence.numVerts > 0) {
+          free(polygon.geofence.verts);
+        }
+        if (polygon.numHoles > 0) {
+          for (int x = 0; x < polygon.numHoles; x++) {
+            if (polygon.holes[x].numVerts > 0) {
+              free(polygon.holes[x].verts);
+            }
+          }
+          free(polygon.holes);
+        }
+        return NULL;
+      }
+      int polygonLength;
+      if (napi_get_array_length(env, polygonArray, &polygonLength) != napi_ok) {
+        napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
+        return NULL;
+      }
+      if (i == 0) {
+        // Primary geofence case
+        polygon.geofence.numVerts = polygonLength;
+        polygon.geofence.verts = calloc(polygonLength, sizeof(GeoCoord));
+        for (int i = 0; i < polygonLength; i++) {
+          napiGetNapiValue(polygonArray, i, latlngArray) {
+            if (polygon.geofence.numVerts > 0) {
+              free(polygon.geofence.verts);
+            }
+            if (polygon.numHoles > 0) {
+              for (int x = 0; x < polygon.numHoles; x++) {
+                if (polygon.holes[x].numVerts > 0) {
+                  free(polygon.holes[x].verts);
+                }
+              }
+              free(polygon.holes);
+            }
+            return NULL;
+          }
+          napiGetNapiValue(latlngArray, 0, a) {
+            if (polygon.geofence.numVerts > 0) {
+              free(polygon.geofence.verts);
+            }
+            if (polygon.numHoles > 0) {
+              for (int x = 0; x < polygon.numHoles; x++) {
+                if (polygon.holes[x].numVerts > 0) {
+                  free(polygon.holes[x].verts);
+                }
+              }
+              free(polygon.holes);
+            }
+            return NULL;
+          }
+          napiGetNapiValue(latlngArray, 1, b) {
+            if (polygon.geofence.numVerts > 0) {
+              free(polygon.geofence.verts);
+            }
+            if (polygon.numHoles > 0) {
+              for (int x = 0; x < polygon.numHoles; x++) {
+                if (polygon.holes[x].numVerts > 0) {
+                  free(polygon.holes[x].verts);
+                }
+              }
+              free(polygon.holes);
+            }
+            return NULL;
+          }
+          if (isGeoJson) {
+            napiGet(b, double, double, lat) {
+              if (polygon.geofence.numVerts > 0) {
+                free(polygon.geofence.verts);
+              }
+              if (polygon.numHoles > 0) {
+                for (int x = 0; x < polygon.numHoles; x++) {
+                  if (polygon.holes[x].numVerts > 0) {
+                    free(polygon.holes[x].verts);
+                  }
+                }
+                free(polygon.holes);
+              }
+              return NULL;
+            }
+            napiGet(a, double, double, lng) {
+              if (polygon.geofence.numVerts > 0) {
+                free(polygon.geofence.verts);
+              }
+              if (polygon.numHoles > 0) {
+                for (int x = 0; x < polygon.numHoles; x++) {
+                  if (polygon.holes[x].numVerts > 0) {
+                    free(polygon.holes[x].verts);
+                  }
+                }
+                free(polygon.holes);
+              }
+              return NULL;
+            }
+            polygon.geofence.verts[i].lat = degsToRads(lat);
+            polygon.geofence.verts[i].lon = degsToRads(lng);
+          } else {
+            napiGet(a, double, double, lat) {
+              if (polygon.geofence.numVerts > 0) {
+                free(polygon.geofence.verts);
+              }
+              if (polygon.numHoles > 0) {
+                for (int x = 0; x < polygon.numHoles; x++) {
+                  if (polygon.holes[x].numVerts > 0) {
+                    free(polygon.holes[x].verts);
+                  }
+                }
+                free(polygon.holes);
+              }
+              return NULL;
+            }
+            napiGet(b, double, double, lng) {
+              if (polygon.geofence.numVerts > 0) {
+                free(polygon.geofence.verts);
+              }
+              if (polygon.numHoles > 0) {
+                for (int x = 0; x < polygon.numHoles; x++) {
+                  if (polygon.holes[x].numVerts > 0) {
+                    free(polygon.holes[x].verts);
+                  }
+                }
+                free(polygon.holes);
+              }
+              return NULL;
+            }
+            polygon.geofence.verts[i].lat = degsToRads(lat);
+            polygon.geofence.verts[i].lon = degsToRads(lng);
+          }
+        }
+      } else {
+        // Hole case
+        Geofence hole = polygon.holes[i - 1];
+        hole.numVerts = polygonLength;
+        hole.verts = calloc(polygonLength, sizeof(GeoCoord));
+        for (int i = 0; i < polygonLength; i++) {
+          napiGetNapiValue(polygonArray, i, latlngArray) {
+            if (polygon.geofence.numVerts > 0) {
+              free(polygon.geofence.verts);
+            }
+            if (polygon.numHoles > 0) {
+              for (int x = 0; x < polygon.numHoles; x++) {
+                if (polygon.holes[x].numVerts > 0) {
+                  free(polygon.holes[x].verts);
+                }
+              }
+              free(polygon.holes);
+            }
+            return NULL;
+          }
+          napiGetNapiValue(latlngArray, 0, a) {
+            if (polygon.geofence.numVerts > 0) {
+              free(polygon.geofence.verts);
+            }
+            if (polygon.numHoles > 0) {
+              for (int x = 0; x < polygon.numHoles; x++) {
+                if (polygon.holes[x].numVerts > 0) {
+                  free(polygon.holes[x].verts);
+                }
+              }
+              free(polygon.holes);
+            }
+            return NULL;
+          }
+          napiGetNapiValue(latlngArray, 1, b) {
+            if (polygon.geofence.numVerts > 0) {
+              free(polygon.geofence.verts);
+            }
+            if (polygon.numHoles > 0) {
+              for (int x = 0; x < polygon.numHoles; x++) {
+                if (polygon.holes[x].numVerts > 0) {
+                  free(polygon.holes[x].verts);
+                }
+              }
+              free(polygon.holes);
+            }
+            return NULL;
+          }
+          if (isGeoJson) {
+            napiGet(b, double, double, lat) {
+              if (polygon.geofence.numVerts > 0) {
+                free(polygon.geofence.verts);
+              }
+              if (polygon.numHoles > 0) {
+                for (int x = 0; x < polygon.numHoles; x++) {
+                  if (polygon.holes[x].numVerts > 0) {
+                    free(polygon.holes[x].verts);
+                  }
+                }
+                free(polygon.holes);
+              }
+              return NULL;
+            }
+            napiGet(a, double, double, lng) {
+              if (polygon.geofence.numVerts > 0) {
+                free(polygon.geofence.verts);
+              }
+              if (polygon.numHoles > 0) {
+                for (int x = 0; x < polygon.numHoles; x++) {
+                  if (polygon.holes[x].numVerts > 0) {
+                    free(polygon.holes[x].verts);
+                  }
+                }
+                free(polygon.holes);
+              }
+              return NULL;
+            }
+            hole.verts[i].lat = degsToRads(lat);
+            hole.verts[i].lon = degsToRads(lng);
+          } else {
+            napiGet(a, double, double, lat) {
+              if (polygon.geofence.numVerts > 0) {
+                free(polygon.geofence.verts);
+              }
+              if (polygon.numHoles > 0) {
+                for (int x = 0; x < polygon.numHoles; x++) {
+                  if (polygon.holes[x].numVerts > 0) {
+                    free(polygon.holes[x].verts);
+                  }
+                }
+                free(polygon.holes);
+              }
+              return NULL;
+            }
+            napiGet(b, double, double, lng) {
+              if (polygon.geofence.numVerts > 0) {
+                free(polygon.geofence.verts);
+              }
+              if (polygon.numHoles > 0) {
+                for (int x = 0; x < polygon.numHoles; x++) {
+                  if (polygon.holes[x].numVerts > 0) {
+                    free(polygon.holes[x].verts);
+                  }
+                }
+                free(polygon.holes);
+              }
+              return NULL;
+            }
+            hole.verts[i].lat = degsToRads(lat);
+            polygon.geofence.verts[i].lon = degsToRads(lng);
+          }
+        }
+      }
+    }
+  }
+  int maxSize = maxPolyfillSize(&polygon, res);
+  H3Index* fill = calloc(maxSize, sizeof(H3Index));
+  polyfill(&polygon, res, fill);
+
+  int arrayIndex = 0;
+  for (int i = 0; i < maxSize; i++) {
+    H3Index h3 = fill[i];
+    if (h3 == 0) continue;
+    napiStoreH3Index(h3, h3Obj) {
+      if (polygon.geofence.numVerts > 0) {
+        free(polygon.geofence.verts);
+      }
+      if (polygon.numHoles > 0) {
+        for (int x = 0; x < polygon.numHoles; x++) {
+          if (polygon.holes[x].numVerts > 0) {
+            free(polygon.holes[x].verts);
+          }
+        }
+        free(polygon.holes);
+      }
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, h3Obj) {
+      if (polygon.geofence.numVerts > 0) {
+        free(polygon.geofence.verts);
+      }
+      if (polygon.numHoles > 0) {
+        for (int x = 0; x < polygon.numHoles; x++) {
+          if (polygon.holes[x].numVerts > 0) {
+            free(polygon.holes[x].verts);
+          }
+        }
+        free(polygon.holes);
+      }
+      return NULL;
+    }
+    arrayIndex++;
+  }
+
+  if (polygon.geofence.numVerts > 0) {
+    free(polygon.geofence.verts);
+  }
+  if (polygon.numHoles > 0) {
+    for (int x = 0; x < polygon.numHoles; x++) {
+      if (polygon.holes[x].numVerts > 0) {
+        free(polygon.holes[x].verts);
+      }
+    }
+    free(polygon.holes);
+  }
+  return result;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -647,6 +1065,9 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(h3ToChildren);
   napiExport(compact);
   napiExport(uncompact);
+
+  // Region Functions
+  napiExport(polyfill);
 
   return exports;
 }
