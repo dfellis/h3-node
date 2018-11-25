@@ -82,11 +82,11 @@ const benchmarkGen = (methodName, genArgs, useTryCatch = false) => test => {
 
 const randCoords = () => [360 * Math.random() - 180, 180 * Math.random() - 90]
 
-const exportTest = (methodName, genArgs, testFn) =>
-  exports[methodName] = testGen(methodName, genArgs, testFn)
+const exportTest = (methodName, genArgs, testFn, extraName = '') =>
+  exports[`${methodName}${extraName}`] = testGen(methodName, genArgs, testFn)
 
-const exportBenchmark = (methodName, genArgs, useTryCatch = false) =>
-  exports[`${methodName}Benchmark`] = benchmarkGen(methodName, genArgs, useTryCatch)
+const exportBenchmark = (methodName, genArgs, useTryCatch = false, extraName = '') =>
+  exports[`${methodName}${extraName}Benchmark`] = benchmarkGen(methodName, genArgs, useTryCatch)
 
 exportTest('geoToH3', () => [...randCoords(), 9], simpleTest)
 exportTest('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)], almostEqualTest)
@@ -156,6 +156,34 @@ exportTest('uncompact', () => [
   h3node.compact(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6)),
   9,
 ], simpleTest)
+exportTest('polyfill', () => [
+  [
+    [37.77, -122.43],
+    [37.55, -122.43],
+    [37.55, -122.23],
+    [37.77, -122.23],
+    [37.77, -122.43],
+  ],
+  6,
+], simpleTest)
+exportTest('polyfill', () => [
+  [
+    [
+      [37.77, -122.43],
+      [37.55, -122.43],
+      [37.55, -122.23],
+      [37.77, -122.23],
+      [37.77, -122.43],
+    ], [
+      [37.67, -122.43],
+      [37.55, -122.43],
+      [37.55, -122.33],
+      [37.67, -122.33],
+      [37.67, -122.43],
+    ],
+  ],
+  6,
+], simpleTest, 'WithHoles')
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -227,3 +255,61 @@ exportBenchmark('uncompact', () => [
   h3node.compact(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6)),
   9,
 ])
+exportBenchmark('polyfill', () => [
+  [
+    [37.77, -122.43],
+    [37.55, -122.43],
+    [37.55, -122.23],
+    [37.77, -122.23],
+    [37.77, -122.43],
+  ],
+  4,
+])
+exportBenchmark('polyfill', () => [
+  [
+    [
+      [37.77, -122.43],
+      [37.55, -122.43],
+      [37.55, -122.23],
+      [37.77, -122.23],
+      [37.77, -122.43],
+    ], [
+      [37.67, -122.43],
+      [37.55, -122.43],
+      [37.55, -122.33],
+      [37.67, -122.33],
+      [37.67, -122.43],
+    ],
+  ],
+  4,
+], false, 'WithHoles')
+
+/* console.log(h3node.polyfill(
+  [
+    [
+      [37.77, -122.43],
+      [37.55, -122.43],
+      [37.55, -122.23],
+      [37.77, -122.23],
+      [37.77, -122.43],
+    ], [
+      [37.67, -122.43],
+      [37.55, -122.43],
+      [37.55, -122.33],
+      [37.67, -122.33],
+      [37.67, -122.43],
+    ],
+  ],
+  6,
+).map(h => h3node.h3ToGeoBoundary(h))
+  .map(c => [...c.map(co => [co[1], co[0]])])
+  .map(c2 => [...c2, c2[0]])
+  .map(b => ({
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [b],
+    },
+  }))
+  .map(g => JSON.stringify(g, undefined, '  ')).join(', ')) */
