@@ -735,7 +735,9 @@ napiFn(polyfill) {
       return NULL;
     }
     polygon.numHoles = arrayLength - 1;
-    polygon.holes = calloc(polygon.numHoles, sizeof(Geofence));
+    if (polygon.numHoles > 0) {
+      polygon.holes = calloc(polygon.numHoles, sizeof(Geofence));
+    }
     for (int i = 0; i < arrayLength; i++) {
       napiGetNapiValue(geofenceArrayObj, i, polygonArray) {
         if (polygon.geofence.numVerts > 0) {
@@ -760,8 +762,8 @@ napiFn(polyfill) {
         // Primary geofence case
         polygon.geofence.numVerts = polygonLength;
         polygon.geofence.verts = calloc(polygonLength, sizeof(GeoCoord));
-        for (int i = 0; i < polygonLength; i++) {
-          napiGetNapiValue(polygonArray, i, latlngArray) {
+        for (int j = 0; j < polygonLength; j++) {
+          napiGetNapiValue(polygonArray, j, latlngArray) {
             if (polygon.geofence.numVerts > 0) {
               free(polygon.geofence.verts);
             }
@@ -832,8 +834,8 @@ napiFn(polyfill) {
               }
               return NULL;
             }
-            polygon.geofence.verts[i].lat = degsToRads(lat);
-            polygon.geofence.verts[i].lon = degsToRads(lng);
+            polygon.geofence.verts[j].lat = degsToRads(lat);
+            polygon.geofence.verts[j].lon = degsToRads(lng);
           } else {
             napiGet(a, double, double, lat) {
               if (polygon.geofence.numVerts > 0) {
@@ -863,17 +865,16 @@ napiFn(polyfill) {
               }
               return NULL;
             }
-            polygon.geofence.verts[i].lat = degsToRads(lat);
-            polygon.geofence.verts[i].lon = degsToRads(lng);
+            polygon.geofence.verts[j].lat = degsToRads(lat);
+            polygon.geofence.verts[j].lon = degsToRads(lng);
           }
         }
       } else {
         // Hole case
-        Geofence hole = polygon.holes[i - 1];
-        hole.numVerts = polygonLength;
-        hole.verts = calloc(polygonLength, sizeof(GeoCoord));
-        for (int i = 0; i < polygonLength; i++) {
-          napiGetNapiValue(polygonArray, i, latlngArray) {
+        polygon.holes[i - 1].numVerts = polygonLength;
+        polygon.holes[i - 1].verts = calloc(polygonLength, sizeof(GeoCoord));
+        for (int j = 0; j < polygonLength; j++) {
+          napiGetNapiValue(polygonArray, j, latlngArray) {
             if (polygon.geofence.numVerts > 0) {
               free(polygon.geofence.verts);
             }
@@ -944,8 +945,8 @@ napiFn(polyfill) {
               }
               return NULL;
             }
-            hole.verts[i].lat = degsToRads(lat);
-            hole.verts[i].lon = degsToRads(lng);
+            polygon.holes[i - 1].verts[j].lat = degsToRads(lat);
+            polygon.holes[i - 1].verts[j].lon = degsToRads(lng);
           } else {
             napiGet(a, double, double, lat) {
               if (polygon.geofence.numVerts > 0) {
@@ -975,8 +976,8 @@ napiFn(polyfill) {
               }
               return NULL;
             }
-            hole.verts[i].lat = degsToRads(lat);
-            polygon.geofence.verts[i].lon = degsToRads(lng);
+            polygon.holes[i - 1].verts[j].lat = degsToRads(lat);
+            polygon.holes[i - 1].verts[j].lon = degsToRads(lng);
           }
         }
       }

@@ -282,5 +282,34 @@ exportBenchmark('polyfill', () => [
     ],
   ],
   4,
-], false, 'WithHoles');
+], false, 'WithHoles')
 
+/* console.log(h3node.polyfill(
+  [
+    [
+      [37.77, -122.43],
+      [37.55, -122.43],
+      [37.55, -122.23],
+      [37.77, -122.23],
+      [37.77, -122.43],
+    ], [
+      [37.67, -122.43],
+      [37.55, -122.43],
+      [37.55, -122.33],
+      [37.67, -122.33],
+      [37.67, -122.43],
+    ],
+  ],
+  6,
+).map(h => h3node.h3ToGeoBoundary(h))
+  .map(c => [...c.map(co => [co[1], co[0]])])
+  .map(c2 => [...c2, c2[0]])
+  .map(b => ({
+    type: 'Feature',
+    properties: {},
+    geometry: {
+      type: 'Polygon',
+      coordinates: [b],
+    },
+  }))
+  .map(g => JSON.stringify(g, undefined, '  ')).join(', ')) */
