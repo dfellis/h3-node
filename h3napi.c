@@ -1037,6 +1037,22 @@ napiFn(polyfill) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Unidirectional Edge Functions                                             //
+///////////////////////////////////////////////////////////////////////////////
+
+napiFn(h3IndexesAreNeighbors) {
+  napiArgs(2);
+  napiGetH3Index(0, origin);
+  napiGetH3Index(1, destination);
+
+  int areNeighbors = h3IndexesAreNeighbors(origin, destination);
+
+  napiStoreBool(result, areNeighbors);
+
+  return result;
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -1069,6 +1085,9 @@ napi_value init_all (napi_env env, napi_value exports) {
 
   // Region Functions
   napiExport(polyfill);
+
+  // Unidirectional Edge Functions
+  napiExport(h3IndexesAreNeighbors);
 
   return exports;
 }

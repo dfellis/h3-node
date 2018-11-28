@@ -39,6 +39,7 @@ When fully implemented, it will be a drop-in replacement for [H3-js](https://git
 * `compact`
 * `uncompact`
 * `polyfill`
+* `h3IndexesAreNeighbors`
 
 ```js
 const h3 = require('h3-node')
@@ -70,6 +71,7 @@ const bayAreaHexes = h3.polyfill([
     [37.77, -122.23],
     [37.77, -122.43],
   ], 9)
+const areNeighbors = h3.h3IndexesAreNeighbors(neighbors[0], neighbors[1])
 ```
 
 ## Why another H3 for Node?
@@ -84,7 +86,7 @@ yarn run v1.12.3
 $ nodeunit test
 
 index
-(node:14600) Warning: N-API is an experimental feature and could change at any time.
+(node:23491) Warning: N-API is an experimental feature and could change at any time.
 ✔ geoToH3
 ✔ h3ToGeo
 ✔ h3ToGeoBoundary
@@ -105,109 +107,115 @@ index
 ✔ uncompact
 ✔ polyfill
 ✔ polyfillWithHoles
+✔ h3IndexesAreNeighbors
 
 geoToH3 Benchmark:
-H3-js time in ns:    28465523
-H3-node time in ns:  3908871
+H3-js time in ns:    34047459
+H3-node time in ns:  3530246
 ✔ geoToH3Benchmark
 
 h3ToGeo Benchmark:
-H3-js time in ns:    6195781
-H3-node time in ns:  2668031
+H3-js time in ns:    6789920
+H3-node time in ns:  2670990
 ✔ h3ToGeoBenchmark
 
 h3ToGeoBoundary Benchmark:
-H3-js time in ns:    22513949
-H3-node time in ns:  8610824
+H3-js time in ns:    23923439
+H3-node time in ns:  8857254
 ✔ h3ToGeoBoundaryBenchmark
 
 h3GetResolution Benchmark:
-H3-js time in ns:    279625
-H3-node time in ns:  483233
+H3-js time in ns:    471997
+H3-node time in ns:  845826
 ✔ h3GetResolutionBenchmark
 
 h3GetBaseCell Benchmark:
-H3-js time in ns:    520916
-H3-node time in ns:  492696
+H3-js time in ns:    738478
+H3-node time in ns:  767836
 ✔ h3GetBaseCellBenchmark
 
 h3IsValid Benchmark:
-H3-js time in ns:    2518655
-H3-node time in ns:  813764
+H3-js time in ns:    2113123
+H3-node time in ns:  404929
 ✔ h3IsValidBenchmark
 
 h3IsResClassIII Benchmark:
-H3-js time in ns:    466524
-H3-node time in ns:  410371
+H3-js time in ns:    594201
+H3-node time in ns:  470976
 ✔ h3IsResClassIIIBenchmark
 
 h3IsPentagon Benchmark:
-H3-js time in ns:    556491
-H3-node time in ns:  454306
+H3-js time in ns:    551788
+H3-node time in ns:  439765
 ✔ h3IsPentagonBenchmark
 
 kRing Benchmark:
-H3-js time in ns:    227662086
-H3-node time in ns:  87472963
+H3-js time in ns:    276614467
+H3-node time in ns:  103127364
 ✔ kRingBenchmark
 
 kRingDistances Benchmark:
-H3-js time in ns:    249748496
-H3-node time in ns:  89572581
+H3-js time in ns:    266588084
+H3-node time in ns:  99876067
 ✔ kRingDistancesBenchmark
 
 hexRing Benchmark:
-H3-js time in ns:    23593027
-H3-node time in ns:  19919137
+H3-js time in ns:    26563574
+H3-node time in ns:  19553289
 ✔ hexRingBenchmark
 
 h3Distance Benchmark:
-H3-js time in ns:    5713512
-H3-node time in ns:  2080585
+H3-js time in ns:    4535424
+H3-node time in ns:  2233885
 ✔ h3DistanceBenchmark
 
 experimentalH3ToLocalIj Benchmark:
-H3-js time in ns:    2777201
-H3-node time in ns:  2317927
+H3-js time in ns:    5149472
+H3-node time in ns:  2541556
 ✔ experimentalH3ToLocalIjBenchmark
 
 experimentalLocalIjToH3 Benchmark:
-H3-js time in ns:    15613695
-H3-node time in ns:  2932680
+H3-js time in ns:    20350907
+H3-node time in ns:  3068340
 ✔ experimentalLocalIjToH3Benchmark
 
 h3ToParent Benchmark:
-H3-js time in ns:    2295625
-H3-node time in ns:  889461
+H3-js time in ns:    2079320
+H3-node time in ns:  886538
 ✔ h3ToParentBenchmark
 
 h3ToChildren Benchmark:
-H3-js time in ns:    1609965396
-H3-node time in ns:  2373352665
+H3-js time in ns:    1505776031
+H3-node time in ns:  2251545471
 ✔ h3ToChildrenBenchmark
 
 compact Benchmark:
-H3-js time in ns:    306431846
-H3-node time in ns:  62116932
+H3-js time in ns:    307896997
+H3-node time in ns:  64133666
 ✔ compactBenchmark
 
 uncompact Benchmark:
-H3-js time in ns:    74380767
-H3-node time in ns:  82409300
+H3-js time in ns:    81788310
+H3-node time in ns:  80159149
 ✔ uncompactBenchmark
 
 polyfill Benchmark:
-H3-js time in ns:    39023550
-H3-node time in ns:  18329586
+H3-js time in ns:    48198166
+H3-node time in ns:  19398233
 ✔ polyfillBenchmark
 
 polyfill Benchmark:
-H3-js time in ns:    29646987
-H3-node time in ns:  19729632
+H3-js time in ns:    34119794
+H3-node time in ns:  21296364
 ✔ polyfillWithHolesBenchmark
 
-OK: 200 assertions (6190ms)
-Done in 6.43s.
+h3IndexesAreNeighbors Benchmark:
+H3-js time in ns:    6289336
+H3-node time in ns:  1853066
+✔ h3IndexesAreNeighborsBenchmark
+
+OK: 210 assertions (6228ms)
+Done in 6.48s.
 ```
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.

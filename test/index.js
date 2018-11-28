@@ -82,6 +82,15 @@ const benchmarkGen = (methodName, genArgs, useTryCatch = false) => test => {
 
 const randCoords = () => [360 * Math.random() - 180, 180 * Math.random() - 90]
 
+const randElements = (array, numItems) => Array.from(new Array(numItems), function() {
+  let v
+  do {
+    v = Math.floor(Math.random() * array.length)
+  } while (this.usedIndices.includes(v))
+  this.usedIndices.push(v)
+  return v
+}, { usedIndices: [] }).map(i => array[i])
+
 const exportTest = (methodName, genArgs, testFn, extraName = '') =>
   exports[`${methodName}${extraName}`] = testGen(methodName, genArgs, testFn)
 
@@ -184,6 +193,9 @@ exportTest('polyfill', () => [
   ],
   6,
 ], simpleTest, 'WithHoles')
+exportTest('h3IndexesAreNeighbors', () => 
+  randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2),
+  simpleTest)
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -283,6 +295,8 @@ exportBenchmark('polyfill', () => [
   ],
   4,
 ], false, 'WithHoles')
+exportBenchmark('h3IndexesAreNeighbors', () => 
+  randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2))
 
 /* console.log(h3node.polyfill(
   [
