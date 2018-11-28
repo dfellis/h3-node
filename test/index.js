@@ -39,7 +39,7 @@ const allowPentagonTest = (test, methodName, args) => {
   }
 }
 
-const benchmarkGen = (methodName, genArgs, useTryCatch = false) => test => {
+const benchmarkGen = (methodName, genArgs, useTryCatch = false, extraName = '') => test => {
   const runs = []
   for (let i = 0; i < 1000; i++) {
     runs.push(genArgs())
@@ -74,7 +74,7 @@ const benchmarkGen = (methodName, genArgs, useTryCatch = false) => test => {
   }
 
   console.log('')
-  console.log(`${methodName} Benchmark:`)
+  console.log(`${methodName}${extraName} Benchmark:`)
   console.log('H3-js time in ns:   ', h3jsTime[0] * 1e9 + h3jsTime[1])
   console.log('H3-node time in ns: ', h3nodeTime[0] * 1e9 + h3nodeTime[1])
   test.done()
@@ -95,7 +95,7 @@ const exportTest = (methodName, genArgs, testFn, extraName = '') =>
   exports[`${methodName}${extraName}`] = testGen(methodName, genArgs, testFn)
 
 const exportBenchmark = (methodName, genArgs, useTryCatch = false, extraName = '') =>
-  exports[`${methodName}${extraName}Benchmark`] = benchmarkGen(methodName, genArgs, useTryCatch)
+  exports[`${methodName}${extraName}Benchmark`] = benchmarkGen(methodName, genArgs, useTryCatch, extraName)
 
 exportTest('geoToH3', () => [...randCoords(), 9], simpleTest)
 exportTest('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)], almostEqualTest)
@@ -196,6 +196,32 @@ exportTest('polyfill', () => [
 exportTest('h3IndexesAreNeighbors', () => 
   randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2),
   simpleTest)
+exportTest('getH3UnidirectionalEdge', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [randIndex, h3node.kRing(randIndex, 1).pop()] 
+}, simpleTest)
+exportTest('h3UnidirectionalEdgeIsValid', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  if (Math.random() > 0.5) {
+    return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+  } else {
+    return [randIndex]
+  }
+}, simpleTest)
+exportTest('getOriginH3IndexFromUnidirectionalEdge', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+}, simpleTest)
+exportTest('getDestinationH3IndexFromUnidirectionalEdge', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+}, simpleTest)
+exportTest('getH3IndexesFromUnidirectionalEdge', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+}, simpleTest)
+exportTest('getH3UnidirectionalEdgesFromHexagon', () =>
+  [h3node.geoToH3(...randCoords(), 9)], simpleTest)
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -297,6 +323,32 @@ exportBenchmark('polyfill', () => [
 ], false, 'WithHoles')
 exportBenchmark('h3IndexesAreNeighbors', () => 
   randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2))
+exportBenchmark('getH3UnidirectionalEdge', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [randIndex, h3node.kRing(randIndex, 1).pop()] 
+})
+exportBenchmark('h3UnidirectionalEdgeIsValid', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  if (Math.random() > 0.5) {
+    return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+  } else {
+    return [randIndex]
+  }
+})
+exportBenchmark('getOriginH3IndexFromUnidirectionalEdge', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+})
+exportBenchmark('getDestinationH3IndexFromUnidirectionalEdge', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+})
+exportBenchmark('getH3IndexesFromUnidirectionalEdge', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+})
+exportBenchmark('getH3UnidirectionalEdgesFromHexagon', () =>
+  [h3node.geoToH3(...randCoords(), 9)], simpleTest)
 
 /* console.log(h3node.polyfill(
   [

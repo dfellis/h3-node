@@ -114,14 +114,24 @@
   }\
   if (napiNapiH3Index ## V != napi_ok)
 
-#define napiNapiValue(N, T, V) \
+#define napiNapiUnidirectionalEdge(V, O) \
+  char V ## String[17];\
+  h3ToString(V, V ## String, 17);\
+  napi_value O;\
+  napi_status napiNapiUnidirectionalEdge ## V = napi_create_string_utf8(env, V ## String, 16, &O);\
+  if (napiNapiUnidirectionalEdge ## V != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not write H3 string");\
+  }\
+  if (napiNapiUnidirectionalEdge ## V != napi_ok)
+
+#define napiNapiValue(V, T, N) \
   napi_value N;\
   if (napi_create_ ## T(env, V, &N) != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not create " #N);\
     return NULL;\
   }
 
-#define napiNapiBool(N, V) \
+#define napiNapiBool(V, N) \
   napi_value N;\
   if (napi_get_boolean(env, V, &N) != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not create boolean");\
@@ -223,7 +233,7 @@ napiFn(h3GetResolution) {
 
   int res = h3GetResolution(h3);
 
-  napiNapiValue(result, int32, res);
+  napiNapiValue(res, int32, result);
 
   return result;
 }
@@ -234,7 +244,7 @@ napiFn(h3GetBaseCell) {
 
   int baseCell = h3GetBaseCell(h3);
 
-  napiNapiValue(result, int32, baseCell);
+  napiNapiValue(baseCell, int32, result);
 
   return result;
 }
@@ -245,7 +255,7 @@ napiFn(h3IsValid) {
 
   int isValid = h3IsValid(h3);
 
-  napiNapiBool(result, isValid);
+  napiNapiBool(isValid, result);
 
   return result;
 }
@@ -256,7 +266,7 @@ napiFn(h3IsResClassIII) {
 
   int isResClassIII = h3IsResClassIII(h3);
 
-  napiNapiBool(result, isResClassIII);
+  napiNapiBool(isResClassIII, result);
 
   return result;
 }
@@ -267,7 +277,7 @@ napiFn(h3IsPentagon) {
 
   int isPentagon = h3IsPentagon(h3);
 
-  napiNapiBool(result, isPentagon);
+  napiNapiBool(isPentagon, result);
 
   return result;
 }
@@ -419,7 +429,7 @@ napiFn(h3Distance) {
 
   int distance = h3Distance(origin, destination);
 
-  napiNapiValue(result, int32, distance);
+  napiNapiValue(distance, int32, result);
 
   return result;
 }
@@ -856,7 +866,93 @@ napiFn(h3IndexesAreNeighbors) {
 
   int areNeighbors = h3IndexesAreNeighbors(origin, destination);
 
-  napiNapiBool(result, areNeighbors);
+  napiNapiBool(areNeighbors, result);
+
+  return result;
+}
+
+napiFn(getH3UnidirectionalEdge) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, origin);
+  napiGetH3IndexArg(1, destination);
+
+  H3Index unidirectionalEdge = getH3UnidirectionalEdge(origin, destination);
+
+  napiNapiUnidirectionalEdge(unidirectionalEdge, result);
+
+  return result;
+}
+
+napiFn(h3UnidirectionalEdgeIsValid) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, unidirectionalEdge);
+
+  int isUnidirectionalEdge = h3UnidirectionalEdgeIsValid(unidirectionalEdge);
+
+  napiNapiBool(isUnidirectionalEdge, result);
+
+  return result;
+}
+
+napiFn(getOriginH3IndexFromUnidirectionalEdge) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, unidirectionalEdge);
+
+  H3Index origin = getOriginH3IndexFromUnidirectionalEdge(unidirectionalEdge);
+
+  napiNapiH3Index(origin, result);
+
+  return result;
+}
+
+napiFn(getDestinationH3IndexFromUnidirectionalEdge) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, unidirectionalEdge);
+
+  H3Index destination = getDestinationH3IndexFromUnidirectionalEdge(unidirectionalEdge);
+
+  napiNapiH3Index(destination, result);
+
+  return result;
+}
+
+napiFn(getH3IndexesFromUnidirectionalEdge) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, unidirectionalEdge);
+
+  H3Index originDestination[2];
+
+  getH3IndexesFromUnidirectionalEdge(unidirectionalEdge, originDestination);
+
+  H3Index origin = originDestination[0];
+  H3Index destination = originDestination[1];
+
+  napiFixedArray(result, 2);
+  napiNapiH3Index(origin, originObj);
+  napiNapiH3Index(destination, destinationObj);
+  napiSetNapiValue(result, 0, originObj);
+  napiSetNapiValue(result, 1, destinationObj);
+
+  return result;
+}
+
+napiFn(getH3UnidirectionalEdgesFromHexagon) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, origin);
+
+  H3Index edges[6];
+
+  getH3UnidirectionalEdgesFromHexagon(origin, edges);
+
+  napiVarArray(result);
+  int arrayLength = 0;
+  for (int i = 0; i < 6; i++) {
+    if (edges[i] == 0) continue;
+    H3Index edge = edges[i];
+    napiNapiUnidirectionalEdge(edge, unidirectionalEdge);
+    napiSetNapiValue(result, arrayLength, unidirectionalEdge);
+    arrayLength++;
+  }
 
   return result;
 }
@@ -897,6 +993,12 @@ napi_value init_all (napi_env env, napi_value exports) {
 
   // Unidirectional Edge Functions
   napiExport(h3IndexesAreNeighbors);
+  napiExport(getH3UnidirectionalEdge);
+  napiExport(h3UnidirectionalEdgeIsValid);
+  napiExport(getOriginH3IndexFromUnidirectionalEdge);
+  napiExport(getDestinationH3IndexFromUnidirectionalEdge);
+  napiExport(getH3IndexesFromUnidirectionalEdge);
+  napiExport(getH3UnidirectionalEdgesFromHexagon);
 
   return exports;
 }
