@@ -36,6 +36,15 @@
     return NULL;\
   }
 
+#define napiGetStringArg(I, L, N) \
+  char N[L];\
+  size_t N ## Count;\
+  \
+  if (napi_get_value_string_utf8(env, argv[I], N, L, &N ## Count) != napi_ok) {\
+    napi_throw_error(env, "EINVAL", "Expected unit argument");\
+    return NULL;\
+  }
+
 #define napiToVar(V, J, T, N) \
   T N;\
   napi_status napiToVar ## V ## N = napi_get_value_ ## J(env, V, &N);\
@@ -958,6 +967,90 @@ napiFn(getH3UnidirectionalEdgesFromHexagon) {
 }
 
 ///////////////////////////////////////////////////////////////////////////////
+// Miscellaneous Functions                                                   //
+///////////////////////////////////////////////////////////////////////////////
+
+napiFn(degsToRads) {
+  napiArgs(1);
+  napiGetArg(0, double, double, degs);
+
+  double rads = degsToRads(degs);
+
+  napiNapiValue(rads, double, result);
+
+  return result;
+}
+
+napiFn(radsToDegs) {
+  napiArgs(1);
+  napiGetArg(0, double, double, rads);
+
+  double degs = radsToDegs(rads);
+
+  napiNapiValue(degs, double, result);
+
+  return result;
+}
+
+napiFn(numHexagons) {
+  napiArgs(1);
+  napiGetArg(0, int32, int, res);
+
+  int64_t count = numHexagons(res);
+  double approximateCount = count;
+
+  napiNapiValue(res, double, result);
+
+  return result;
+}
+
+napiFn(edgeLength) {
+  napiArgs(2);
+  napiGetArg(0, int32, int, res);
+  napiGetStringArg(1, 3, unit);
+
+  if (unit[0] == 'm') {
+    double edgeLength = edgeLengthM(res);
+
+    napiNapiValue(edgeLength, double, result);
+
+    return result;
+  } else if (unit[0] == 'k' && unit[1] == 'm') {
+    double edgeLength = edgeLengthKm(res);
+
+    napiNapiValue(edgeLength, double, result);
+
+    return result;
+  } else {
+    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    return NULL;
+  }
+}
+
+napiFn(hexArea) {
+  napiArgs(2);
+  napiGetArg(0, int32, int, res);
+  napiGetStringArg(1, 4, unit);
+
+  if (unit[0] == 'm' && unit[1] == '2') {
+    double area = hexAreaM2(res);
+
+    napiNapiValue(area, double, result);
+
+    return result;
+  } else if (unit[0] == 'k' && unit[1] == 'm' && unit[2] == '2') {
+    double area = hexAreaKm2(res);
+
+    napiNapiValue(area, double, result);
+
+    return result;
+  } else {
+    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    return NULL;
+  }
+}
+
+///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -999,6 +1092,13 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(getDestinationH3IndexFromUnidirectionalEdge);
   napiExport(getH3IndexesFromUnidirectionalEdge);
   napiExport(getH3UnidirectionalEdgesFromHexagon);
+
+  // Miscellaneous Functions
+  napiExport(degsToRads);
+  napiExport(radsToDegs);
+  napiExport(numHexagons);
+  napiExport(edgeLength);
+  napiExport(hexArea);
 
   return exports;
 }

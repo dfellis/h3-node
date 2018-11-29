@@ -222,6 +222,17 @@ exportTest('getH3IndexesFromUnidirectionalEdge', () => {
 }, simpleTest)
 exportTest('getH3UnidirectionalEdgesFromHexagon', () =>
   [h3node.geoToH3(...randCoords(), 9)], simpleTest)
+exportTest('degsToRads', () => [Math.floor(Math.random() * 360)], almostEqualTest)
+exportTest('radsToDegs', () => [Math.floor(Math.random() * 2 * Math.PI)], almostEqualTest)
+exportTest('numHexagons', () => [Math.floor(Math.random() * 16)], almostEqualTest)
+exportTest('edgeLength', () => [
+  Math.floor(Math.random() * 16),
+  Math.random() > 0.5 ? h3node.UNITS.m : h3node.UNITS.km,
+], almostEqualTest)
+exportTest('hexArea', () => [
+  Math.floor(Math.random() * 16),
+  Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
+], almostEqualTest)
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -349,6 +360,17 @@ exportBenchmark('getH3IndexesFromUnidirectionalEdge', () => {
 })
 exportBenchmark('getH3UnidirectionalEdgesFromHexagon', () =>
   [h3node.geoToH3(...randCoords(), 9)], simpleTest)
+exportBenchmark('degsToRads', () => [Math.floor(Math.random() * 360)])
+exportBenchmark('radsToDegs', () => [Math.floor(Math.random() * 2 * Math.PI)])
+exportBenchmark('numHexagons', () => [Math.floor(Math.random() * 16)])
+exportBenchmark('edgeLength', () => [
+  Math.floor(Math.random() * 16),
+  Math.random() > 0.5 ? h3node.UNITS.m : h3node.UNITS.km,
+], almostEqualTest)
+exportBenchmark('hexArea', () => [
+  Math.floor(Math.random() * 16),
+  Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
+], almostEqualTest)
 
 /* console.log(h3node.polyfill(
   [
