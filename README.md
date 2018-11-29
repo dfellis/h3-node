@@ -63,16 +63,16 @@ const edges = h3.getH3UnidirectionalEdgesFromHexagon(h3index)
 const sfCoordsRads = [37.77, -122.43].map(h3.degsToRads)
 const sfCoordsDegs = sfCoordsRads.map(h3.radsToDegs)
 const resStats = Array.from(new Array(16), (x, res) => ({
-	res,
-	numHexagons: h3.numHexagons(res),
-	edgeLength: {
-		m: h3.edgeLength(res, h3.UNITS.m),
-		km: h3.edgeLength(res, h3.UNITS.km),
-	},
-	hexArea: {
-		m2: h3.hexArea(res, h3.UNITS.m2),
-		km2: h3.hexArea(res, h3.UNITS.km2),
-	},
+  res,
+  numHexagons: h3.numHexagons(res),
+  edgeLength: {
+    m: h3.edgeLength(res, h3.UNITS.m),
+    km: h3.edgeLength(res, h3.UNITS.km),
+  },
+  hexArea: {
+    m2: h3.hexArea(res, h3.UNITS.m2),
+    km2: h3.hexArea(res, h3.UNITS.km2),
+  },
 }))
 	
 ```
