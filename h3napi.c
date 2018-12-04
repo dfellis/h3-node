@@ -966,6 +966,26 @@ napiFn(getH3UnidirectionalEdgesFromHexagon) {
   return result;
 }
 
+napiFn(getH3UnidirectionalEdgeBoundary) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, unidirectionalEdge);
+
+  GeoBoundary geoBoundary;
+
+  getH3UnidirectionalEdgeBoundary(unidirectionalEdge, &geoBoundary);
+
+  napiFixedArray(result, geoBoundary.numVerts);
+  for (int i = 0; i < geoBoundary.numVerts; i++) {
+    napiFixedArray(latlngArray, 2);
+    napiSetValue(latlngArray, 0, double, radsToDegs(geoBoundary.verts[i].lat), lat);
+    napiSetValue(latlngArray, 1, double, radsToDegs(geoBoundary.verts[i].lon), lng);
+    napiSetNapiValue(result, i, latlngArray);
+  }
+
+  return result;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // Miscellaneous Functions                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -1092,6 +1112,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(getDestinationH3IndexFromUnidirectionalEdge);
   napiExport(getH3IndexesFromUnidirectionalEdge);
   napiExport(getH3UnidirectionalEdgesFromHexagon);
+  napiExport(getH3UnidirectionalEdgeBoundary);
 
   // Miscellaneous Functions
   napiExport(degsToRads);
