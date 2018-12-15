@@ -18,9 +18,7 @@ npm i h3-node
 
 ## Usage
 
-When fully implemented, it will be a drop-in replacement for [H3-js](https://github.com/uber/h3-js). Most functions have been implemented. The following are still missing versus h3-js:
-
-* h3SetToMultiPolygon
+`h3-node` is a drop-in replacement for [H3-js](https://github.com/uber/h3-js). You can [use the H3-js API reference](https://github.com/uber/h3-js#api-reference) for the available methods and the [official H3 documentation](https://uber.github.io/h3/) to fully understand the purposes of the methods. Below is an abbreviated usage of every available method.
 
 ```js
 const h3 = require('h3-node')
@@ -52,6 +50,7 @@ const bayAreaHexes = h3.polyfill([
     [37.77, -122.23],
     [37.77, -122.43],
   ], 9)
+const bayAreaHexGeo = h3.h3ToMultiPolygon(bayAreaHexes)
 const areNeighbors = h3.h3IndexesAreNeighbors(neighbors[0], neighbors[1])
 const edgeIndex = h3.getH3UnidirectionalEdge(neighbors[0], neighbors[1])
 const isValidEdge = h3.h3UnidirectionalEdgeIsValid(edgeIndex)
@@ -89,7 +88,7 @@ yarn run v1.12.3
 $ nodeunit test
 
 index
-(node:16656) Warning: N-API is an experimental feature and could change at any time.
+(node:26570) Warning: N-API is an experimental feature and could change at any time.
 ✔ geoToH3
 ✔ h3ToGeo
 ✔ h3ToGeoBoundary
@@ -110,6 +109,9 @@ index
 ✔ uncompact
 ✔ polyfill
 ✔ polyfillWithHoles
+✔ h3SetToMultiPolygon
+✔ h3SetToMultiPolygonGeoJsonMode
+✔ h3SetToMultiPolygonTrueMultiPolygon
 ✔ h3IndexesAreNeighbors
 ✔ getH3UnidirectionalEdge
 ✔ h3UnidirectionalEdgeIsValid
@@ -125,172 +127,187 @@ index
 ✔ hexArea
 
 geoToH3 Benchmark:
-H3-js time in ns:    29896113
-H3-node time in ns:  3558073
+H3-js time in ns:    26000657
+H3-node time in ns:  5148913
 ✔ geoToH3Benchmark
 
 h3ToGeo Benchmark:
-H3-js time in ns:    9235892
-H3-node time in ns:  2483098
+H3-js time in ns:    3284399
+H3-node time in ns:  2667621
 ✔ h3ToGeoBenchmark
 
 h3ToGeoBoundary Benchmark:
-H3-js time in ns:    22809714
-H3-node time in ns:  8222332
+H3-js time in ns:    7436655
+H3-node time in ns:  7902614
 ✔ h3ToGeoBoundaryBenchmark
 
 h3GetResolution Benchmark:
-H3-js time in ns:    275810
-H3-node time in ns:  479139
+H3-js time in ns:    457119
+H3-node time in ns:  843462
 ✔ h3GetResolutionBenchmark
 
 h3GetBaseCell Benchmark:
-H3-js time in ns:    518446
-H3-node time in ns:  456102
+H3-js time in ns:    797770
+H3-node time in ns:  773036
 ✔ h3GetBaseCellBenchmark
 
 h3IsValid Benchmark:
-H3-js time in ns:    1681082
-H3-node time in ns:  395163
+H3-js time in ns:    2758258
+H3-node time in ns:  412931
 ✔ h3IsValidBenchmark
 
 h3IsResClassIII Benchmark:
-H3-js time in ns:    557353
-H3-node time in ns:  459256
+H3-js time in ns:    544688
+H3-node time in ns:  475376
 ✔ h3IsResClassIIIBenchmark
 
 h3IsPentagon Benchmark:
-H3-js time in ns:    555483
-H3-node time in ns:  442347
+H3-js time in ns:    557811
+H3-node time in ns:  451157
 ✔ h3IsPentagonBenchmark
 
 kRing Benchmark:
-H3-js time in ns:    265200627
-H3-node time in ns:  105037019
+H3-js time in ns:    275692339
+H3-node time in ns:  92995170
 ✔ kRingBenchmark
 
 kRingDistances Benchmark:
-H3-js time in ns:    291531851
-H3-node time in ns:  97446367
+H3-js time in ns:    343642189
+H3-node time in ns:  96905862
 ✔ kRingDistancesBenchmark
 
 hexRing Benchmark:
-H3-js time in ns:    26698473
-H3-node time in ns:  19413448
+H3-js time in ns:    21990669
+H3-node time in ns:  19162152
 ✔ hexRingBenchmark
 
 h3Distance Benchmark:
-H3-js time in ns:    4517422
-H3-node time in ns:  2298966
+H3-js time in ns:    5288333
+H3-node time in ns:  2292057
 ✔ h3DistanceBenchmark
 
 experimentalH3ToLocalIj Benchmark:
-H3-js time in ns:    5232713
-H3-node time in ns:  2356066
+H3-js time in ns:    4458281
+H3-node time in ns:  2318876
 ✔ experimentalH3ToLocalIjBenchmark
 
 experimentalLocalIjToH3 Benchmark:
-H3-js time in ns:    14010546
-H3-node time in ns:  4639844
+H3-js time in ns:    12065882
+H3-node time in ns:  2827554
 ✔ experimentalLocalIjToH3Benchmark
 
 h3ToParent Benchmark:
-H3-js time in ns:    2090450
-H3-node time in ns:  853517
+H3-js time in ns:    1896427
+H3-node time in ns:  918546
 ✔ h3ToParentBenchmark
 
 h3ToChildren Benchmark:
-H3-js time in ns:    1681751487
-H3-node time in ns:  2558350108
+H3-js time in ns:    1631880198
+H3-node time in ns:  2562248739
 ✔ h3ToChildrenBenchmark
 
 compact Benchmark:
-H3-js time in ns:    323333586
-H3-node time in ns:  67224151
+H3-js time in ns:    304959533
+H3-node time in ns:  67996556
 ✔ compactBenchmark
 
 uncompact Benchmark:
-H3-js time in ns:    81524740
-H3-node time in ns:  82001671
+H3-js time in ns:    79207524
+H3-node time in ns:  80307022
 ✔ uncompactBenchmark
 
 polyfill Benchmark:
-H3-js time in ns:    42153009
-H3-node time in ns:  22233390
+H3-js time in ns:    37142472
+H3-node time in ns:  18458912
 ✔ polyfillBenchmark
 
 polyfillWithHoles Benchmark:
-H3-js time in ns:    29027964
-H3-node time in ns:  23606136
+H3-js time in ns:    21551079
+H3-node time in ns:  20838692
 ✔ polyfillWithHolesBenchmark
 
+h3SetToMultiPolygon Benchmark:
+H3-js time in ns:    895969078
+H3-node time in ns:  658795919
+✔ h3SetToMultiPolygonBenchmark
+
+h3SetToMultiPolygonGeoJsonMode Benchmark:
+H3-js time in ns:    885385041
+H3-node time in ns:  648712504
+✔ h3SetToMultiPolygonGeoJsonModeBenchmark
+
+h3SetToMultiPolygonTrueMultiPolygon Benchmark:
+H3-js time in ns:    1114265076
+H3-node time in ns:  873380364
+✔ h3SetToMultiPolygonTrueMultiPolygonBenchmark
+
 h3IndexesAreNeighbors Benchmark:
-H3-js time in ns:    4990645
-H3-node time in ns:  2144329
+H3-js time in ns:    4879684
+H3-node time in ns:  2117648
 ✔ h3IndexesAreNeighborsBenchmark
 
 getH3UnidirectionalEdge Benchmark:
-H3-js time in ns:    2998564
-H3-node time in ns:  2464475
+H3-js time in ns:    2859663
+H3-node time in ns:  1630762
 ✔ getH3UnidirectionalEdgeBenchmark
 
 h3UnidirectionalEdgeIsValid Benchmark:
-H3-js time in ns:    653944
-H3-node time in ns:  484543
+H3-js time in ns:    678197
+H3-node time in ns:  507790
 ✔ h3UnidirectionalEdgeIsValidBenchmark
 
 getOriginH3IndexFromUnidirectionalEdge Benchmark:
-H3-js time in ns:    1757166
-H3-node time in ns:  851987
+H3-js time in ns:    1061877
+H3-node time in ns:  818962
 ✔ getOriginH3IndexFromUnidirectionalEdgeBenchmark
 
 getDestinationH3IndexFromUnidirectionalEdge Benchmark:
-H3-js time in ns:    1274645
-H3-node time in ns:  901020
+H3-js time in ns:    1256017
+H3-node time in ns:  932105
 ✔ getDestinationH3IndexFromUnidirectionalEdgeBenchmark
 
 getH3IndexesFromUnidirectionalEdge Benchmark:
-H3-js time in ns:    2095066
-H3-node time in ns:  1772039
+H3-js time in ns:    2077358
+H3-node time in ns:  1762693
 ✔ getH3IndexesFromUnidirectionalEdgeBenchmark
 
 getH3UnidirectionalEdgesFromHexagon Benchmark:
-H3-js time in ns:    4397788
-H3-node time in ns:  4082355
+H3-js time in ns:    4372965
+H3-node time in ns:  4076243
 ✔ getH3UnidirectionalEdgesFromHexagonBenchmark
 
 getH3UnidirectionalEdgeBoundary Benchmark:
-H3-js time in ns:    15735788
-H3-node time in ns:  10335979
+H3-js time in ns:    12775609
+H3-node time in ns:  9806594
 ✔ getH3UnidirectionalEdgeBoundaryBenchmark
 
 degsToRads Benchmark:
-H3-js time in ns:    91449
-H3-node time in ns:  207321
+H3-js time in ns:    86747
+H3-node time in ns:  211436
 ✔ degsToRadsBenchmark
 
 radsToDegs Benchmark:
-H3-js time in ns:    90997
-H3-node time in ns:  206666
+H3-js time in ns:    93456
+H3-node time in ns:  227887
 ✔ radsToDegsBenchmark
 
 numHexagons Benchmark:
-H3-js time in ns:    420927
-H3-node time in ns:  197514
+H3-js time in ns:    808198
+H3-node time in ns:  361962
 ✔ numHexagonsBenchmark
 
 edgeLength Benchmark:
-H3-js time in ns:    284680
-H3-node time in ns:  247907
+H3-js time in ns:    533990
+H3-node time in ns:  438234
 ✔ edgeLengthBenchmark
 
 hexArea Benchmark:
-H3-js time in ns:    279448
-H3-node time in ns:  271120
+H3-js time in ns:    514214
+H3-node time in ns:  446460
 ✔ hexAreaBenchmark
 
-OK: 330 assertions (6870ms)
-Done in 7.13s.
+OK: 360 assertions (12301ms)
+Done in 12.56s.
 ```
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.

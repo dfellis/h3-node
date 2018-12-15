@@ -61,6 +61,14 @@
   }\
   if (napiFromArray ## N != napi_ok)
 
+#define napiArrayLen(A, N) \
+  uint32_t N;\
+  napi_status napiArrayLen ## A ## N = napi_get_array_length(env, A, &N);\
+  if (napiArrayLen ## A ## N != napi_ok) {\
+    napi_throw_error(env, "EINVAL", "Did not receive a valid array");\
+  }\
+  if (napiArrayLen ## A ## N != napi_ok)
+
 #define napiGetH3IndexArg(I, O) \
   char O ## Str[17];\
   size_t O ## StrCount;\
@@ -84,10 +92,12 @@
 
 #define napiFixedArray(V, L) \
   napi_value V;\
-  if (napi_create_array_with_length(env, L, &V) != napi_ok) {\
+  napi_status napiFixedArray ## V = napi_create_array_with_length(env, L, &V);\
+  if (napiFixedArray ## V != napi_ok) {\
     napi_throw_error(env, "ENOSPC", "Could not create fixed length array");\
     return NULL;\
-  }
+  }\
+  if (napiFixedArray ## V != napi_ok)
 
 #define napiVarArray(V) \
   napi_value V;\
@@ -111,7 +121,7 @@
     napi_throw_error(env, "ENOSPC", "Could not write " #N #J);\
     return NULL;\
   }\
-  napiSetNapiValue(A, I, N);
+  napiSetNapiValue(A, I, N)
 
 #define napiNapiH3Index(V, O) \
   char V ## String[17];\
@@ -864,6 +874,147 @@ napiFn(polyfill) {
   return result;
 }
 
+napiFn(h3SetToMultiPolygon) {
+  napiArgsWithOptional(1, 1);
+  napiGetNapiArg(0, h3SetArrayObj);
+  napi_value formatAsGeoJsonObj;
+  if (napi_coerce_to_bool(env, argv[1], &formatAsGeoJsonObj) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Somehow cannot coerce a boolean?");
+    return NULL;
+  }
+  bool formatAsGeoJson;
+  if (napi_get_value_bool(env, formatAsGeoJsonObj, &formatAsGeoJson) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Somehow cannot extract boolean from JS object");
+    return NULL;
+  }
+
+  napiArrayLen(h3SetArrayObj, h3SetLen);
+  H3Index* h3Set = calloc(h3SetLen, sizeof(H3Index));
+  for (int i = 0; i < h3SetLen; i++) {
+    napiFromArray(h3SetArrayObj, i, h3Obj) {
+      free(h3Set);
+      return NULL;
+    }
+    napiGetH3Index(h3Obj, h3) {
+      free(h3Set);
+      return NULL;
+    }
+    h3Set[i] = h3;
+  }
+  
+  LinkedGeoPolygon* lgp = calloc(1, sizeof(LinkedGeoPolygon));
+  LinkedGeoPolygon* original = lgp; // For later deallocation needs
+  h3SetToLinkedGeo(h3Set, h3SetLen, lgp);
+ 
+  // Create the output outer array
+  napiVarArray(out) {
+    destroyLinkedPolygon(original);
+    free(original);
+    free(h3Set);
+  }
+  int outLen = 0;
+  // For each polygon defined
+  while (lgp) {
+    // Create an inner array for that polygon and insert it into the output array
+    napiVarArray(loops) {
+      destroyLinkedPolygon(original);
+      free(original);
+      free(h3Set);
+    }
+    int loopsLen = 0;
+    napiSetNapiValue(out, outLen, loops) {
+      destroyLinkedPolygon(original);
+      free(original);
+      free(h3Set);
+    }
+    outLen++;
+    LinkedGeoLoop* loop = lgp->first;
+    // For each coordinate loop in that polygon
+    while (loop) {
+      // Create an inner coordinates array for that loop and insert into the polygon array
+      napiVarArray(coords) {
+        destroyLinkedPolygon(original);
+        free(original);
+        free(h3Set);
+      }
+      int coordsLen = 0;
+      napiSetNapiValue(loops, loopsLen, coords) {
+        destroyLinkedPolygon(original);
+        free(original);
+        free(h3Set);
+      }
+      loopsLen++;
+      LinkedGeoCoord* coord = loop->first;
+      // For each coordinate in that loop
+      while (coord) {
+        // Create a fixed coordinates array and insert into the coordinates loop array
+        napiFixedArray(coordObj, 2) {
+          destroyLinkedPolygon(original);
+          free(original);
+          free(h3Set);
+        }
+        napiSetNapiValue(coords, coordsLen, coordObj) {
+          destroyLinkedPolygon(original);
+          free(original);
+          free(h3Set);
+        }
+        coordsLen++;
+        // Then actually get the coordinates and insert them in the specified order
+        double lat = coord->vertex.lat;
+        double lng = coord->vertex.lon;
+        if (formatAsGeoJson) {
+          napiSetValue(coordObj, 0, double, lng, lngObj)  {
+            destroyLinkedPolygon(original);
+            free(original);
+            free(h3Set);
+          }
+          napiSetValue(coordObj, 1, double, lat, latObj) {
+            destroyLinkedPolygon(original);
+            free(original);
+            free(h3Set);
+          }
+        } else {
+          napiSetValue(coordObj, 0, double, lat, latObj) {
+            destroyLinkedPolygon(original);
+            free(original);
+            free(h3Set);
+          }
+          napiSetValue(coordObj, 1, double, lng, lngObj) {
+            destroyLinkedPolygon(original);
+            free(original);
+            free(h3Set);
+          }
+        }
+        // And repeat until all of the coordinates are done
+        coord = coord->next;
+      }
+      // GeoJSON arrays must be closed
+      if (formatAsGeoJson) {
+        napiFromArray(coords, 0, firstCoord) {
+          destroyLinkedPolygon(original);
+          free(original);
+          free(h3Set);
+        }
+        napiSetNapiValue(coords, coordsLen, firstCoord) {
+          destroyLinkedPolygon(original);
+          free(original);
+          free(h3Set);
+        }
+      }
+      // And repeat until all polygon loops are done
+      loop = loop->next;
+    }
+    // And repeat until all polygons are done
+    lgp = lgp->next;
+  }
+
+  destroyLinkedPolygon(original);
+  free(original);
+  free(h3Set);
+
+  return out;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Unidirectional Edge Functions                                             //
 ///////////////////////////////////////////////////////////////////////////////
@@ -1103,6 +1254,7 @@ napi_value init_all (napi_env env, napi_value exports) {
 
   // Region Functions
   napiExport(polyfill);
+  napiExport(h3SetToMultiPolygon);
 
   // Unidirectional Edge Functions
   napiExport(h3IndexesAreNeighbors);

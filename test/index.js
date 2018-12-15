@@ -193,6 +193,19 @@ exportTest('polyfill', () => [
   ],
   6,
 ], simpleTest, 'WithHoles')
+exportTest('h3SetToMultiPolygon', () => [
+  h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+], almostEqualTest)
+exportTest('h3SetToMultiPolygon', () => [
+  h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+  true,
+], almostEqualTest, 'GeoJsonMode')
+exportTest('h3SetToMultiPolygon', () => [
+  [...new Set([
+    ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+    ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 3),
+  ])]
+], almostEqualTest, 'TrueMultiPolygon')
 exportTest('h3IndexesAreNeighbors', () => 
   randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2),
   simpleTest)
@@ -336,6 +349,19 @@ exportBenchmark('polyfill', () => [
   ],
   4,
 ], false, 'WithHoles')
+exportBenchmark('h3SetToMultiPolygon', () => [
+  h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+])
+exportBenchmark('h3SetToMultiPolygon', () => [
+  h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+  true,
+], false, 'GeoJsonMode')
+exportBenchmark('h3SetToMultiPolygon', () => [
+  [...new Set([
+    ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+    ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 3),
+  ])]
+], false, 'TrueMultiPolygon')
 exportBenchmark('h3IndexesAreNeighbors', () => 
   randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2))
 exportBenchmark('getH3UnidirectionalEdge', () => {
