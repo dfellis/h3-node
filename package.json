@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "install": "node-gyp-build",
+    "update-h3": "rm -rf build && rm -rf h3 && git clone https://github.com/uber/h3 && cd h3 && git checkout v3.2.0 && cmake . -DCMAKE_C_FLAGS=-fPIC && make && cd .. && node-gyp-build",
     "prepublish": "prebuildify --napi",
     "rebuild": "rm -rf build && node-gyp-build",
     "test": "nodeunit test"
