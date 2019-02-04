@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "install": "node-gyp-build",
-    "update-h3": "rm -rf build && rm -rf h3 && git clone https://github.com/uber/h3 && cd h3 && git checkout v3.2.0 && cmake . -DCMAKE_C_FLAGS=-fPIC && make && ls | grep -v bin | grep -v src | grep -v lib | xargs rm -rf && cd .. && node-gyp-build",
+    "update-h3": "npm i node-gyp-build && rm -rf build && rm -rf h3 && git clone https://github.com/uber/h3 && cd h3 && git checkout v3.2.0 && cmake . -DCMAKE_C_FLAGS=-fPIC && make && cd .. && node-gyp-build",
     "prepublishOnly": "prebuildify --napi",
     "rebuild": "rm -rf build && node-gyp-build",
     "test": "nodeunit test"
@@ -26,7 +26,7 @@
   },
   "homepage": "https://github.com/dfellis/h3-node#readme",
   "dependencies": {
-    "node-gyp-build": "^3.5.0"
+    "node-gyp-build": "^3.8.0"
   },
   "devDependencies": {
     "h3-js": "^3.2.0",
