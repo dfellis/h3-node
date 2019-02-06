@@ -40,6 +40,7 @@ const neighbors = h3.kRing(h3index, 1)
 const threeRings = h3.kRingDistances(h3index, 3)
 const ring2Away = h3.hexRing(h3index, 2)
 const index2 = h3.geoToH3(38.88, -122.34, 9)
+const hexLine = h3.h3Line(h3index, index2)
 const hexDistance = h3.h3Distance(h3index, index2)
 const coords = h3.experimentalH3ToLocalIj(h3index, index2)
 const index2again = h3.experimentalLocalIjToH3(h3index, coords)
@@ -77,6 +78,7 @@ const resStats = Array.from(new Array(16), (x, res) => ({
     km2: h3.hexArea(res, h3.UNITS.km2),
   },
 }))
+const res0Indexes = h3.getRes0Indexes()
 	
 ```
 
@@ -92,7 +94,7 @@ yarn run v1.12.3
 $ nodeunit test
 
 index
-(node:26570) Warning: N-API is an experimental feature and could change at any time.
+(node:21680) Warning: N-API is an experimental feature and could change at any time.
 ✔ geoToH3
 ✔ h3ToGeo
 ✔ h3ToGeoBoundary
@@ -107,6 +109,7 @@ index
 ✔ h3Distance
 ✔ experimentalH3ToLocalIj
 ✔ experimentalLocalIjToH3
+✔ h3Line
 ✔ h3ToParent
 ✔ h3ToChildren
 ✔ compact
@@ -129,189 +132,200 @@ index
 ✔ numHexagons
 ✔ edgeLength
 ✔ hexArea
+✔ getRes0Indexes
 
 geoToH3 Benchmark:
-H3-js time in ns:    26000657
-H3-node time in ns:  5148913
+H3-js time in ns:    37053320
+H3-node time in ns:  4948791
 ✔ geoToH3Benchmark
 
 h3ToGeo Benchmark:
-H3-js time in ns:    3284399
-H3-node time in ns:  2667621
+H3-js time in ns:    6991804
+H3-node time in ns:  2543928
 ✔ h3ToGeoBenchmark
 
 h3ToGeoBoundary Benchmark:
-H3-js time in ns:    7436655
-H3-node time in ns:  7902614
+H3-js time in ns:    9363250
+H3-node time in ns:  8859828
 ✔ h3ToGeoBoundaryBenchmark
 
 h3GetResolution Benchmark:
-H3-js time in ns:    457119
-H3-node time in ns:  843462
+H3-js time in ns:    421729
+H3-node time in ns:  575353
 ✔ h3GetResolutionBenchmark
 
 h3GetBaseCell Benchmark:
-H3-js time in ns:    797770
-H3-node time in ns:  773036
+H3-js time in ns:    1009243
+H3-node time in ns:  621067
 ✔ h3GetBaseCellBenchmark
 
 h3IsValid Benchmark:
-H3-js time in ns:    2758258
-H3-node time in ns:  412931
+H3-js time in ns:    5292364
+H3-node time in ns:  426803
 ✔ h3IsValidBenchmark
 
 h3IsResClassIII Benchmark:
-H3-js time in ns:    544688
-H3-node time in ns:  475376
+H3-js time in ns:    874960
+H3-node time in ns:  479571
 ✔ h3IsResClassIIIBenchmark
 
 h3IsPentagon Benchmark:
-H3-js time in ns:    557811
-H3-node time in ns:  451157
+H3-js time in ns:    996449
+H3-node time in ns:  466665
 ✔ h3IsPentagonBenchmark
 
 kRing Benchmark:
-H3-js time in ns:    275692339
-H3-node time in ns:  92995170
+H3-js time in ns:    215144033
+H3-node time in ns:  112755357
 ✔ kRingBenchmark
 
 kRingDistances Benchmark:
-H3-js time in ns:    343642189
-H3-node time in ns:  96905862
+H3-js time in ns:    237245798
+H3-node time in ns:  99332518
 ✔ kRingDistancesBenchmark
 
 hexRing Benchmark:
-H3-js time in ns:    21990669
-H3-node time in ns:  19162152
+H3-js time in ns:    32159864
+H3-node time in ns:  29250788
 ✔ hexRingBenchmark
 
 h3Distance Benchmark:
-H3-js time in ns:    5288333
-H3-node time in ns:  2292057
+H3-js time in ns:    10576821
+H3-node time in ns:  2263446
 ✔ h3DistanceBenchmark
 
 experimentalH3ToLocalIj Benchmark:
-H3-js time in ns:    4458281
-H3-node time in ns:  2318876
+H3-js time in ns:    3560641
+H3-node time in ns:  2767738
 ✔ experimentalH3ToLocalIjBenchmark
 
 experimentalLocalIjToH3 Benchmark:
-H3-js time in ns:    12065882
-H3-node time in ns:  2827554
+H3-js time in ns:    22968173
+H3-node time in ns:  3099782
 ✔ experimentalLocalIjToH3Benchmark
 
+h3Line Benchmark:
+H3-js time in ns:    96361818
+H3-node time in ns:  84495601
+✔ h3LineBenchmark
+
 h3ToParent Benchmark:
-H3-js time in ns:    1896427
-H3-node time in ns:  918546
+H3-js time in ns:    4451580
+H3-node time in ns:  1088388
 ✔ h3ToParentBenchmark
 
 h3ToChildren Benchmark:
-H3-js time in ns:    1631880198
-H3-node time in ns:  2562248739
+H3-js time in ns:    1825357087
+H3-node time in ns:  2512486250
 ✔ h3ToChildrenBenchmark
 
 compact Benchmark:
-H3-js time in ns:    304959533
-H3-node time in ns:  67996556
+H3-js time in ns:    202311592
+H3-node time in ns:  68058802
 ✔ compactBenchmark
 
 uncompact Benchmark:
-H3-js time in ns:    79207524
-H3-node time in ns:  80307022
+H3-js time in ns:    93321495
+H3-node time in ns:  90170303
 ✔ uncompactBenchmark
 
 polyfill Benchmark:
-H3-js time in ns:    37142472
-H3-node time in ns:  18458912
+H3-js time in ns:    52779585
+H3-node time in ns:  16534263
 ✔ polyfillBenchmark
 
 polyfillWithHoles Benchmark:
-H3-js time in ns:    21551079
-H3-node time in ns:  20838692
+H3-js time in ns:    23985204
+H3-node time in ns:  18861196
 ✔ polyfillWithHolesBenchmark
 
 h3SetToMultiPolygon Benchmark:
-H3-js time in ns:    895969078
-H3-node time in ns:  658795919
+H3-js time in ns:    585107474
+H3-node time in ns:  642896833
 ✔ h3SetToMultiPolygonBenchmark
 
 h3SetToMultiPolygonGeoJsonMode Benchmark:
-H3-js time in ns:    885385041
-H3-node time in ns:  648712504
+H3-js time in ns:    501041963
+H3-node time in ns:  647480798
 ✔ h3SetToMultiPolygonGeoJsonModeBenchmark
 
 h3SetToMultiPolygonTrueMultiPolygon Benchmark:
-H3-js time in ns:    1114265076
-H3-node time in ns:  873380364
+H3-js time in ns:    658786084
+H3-node time in ns:  878605470
 ✔ h3SetToMultiPolygonTrueMultiPolygonBenchmark
 
 h3IndexesAreNeighbors Benchmark:
-H3-js time in ns:    4879684
-H3-node time in ns:  2117648
+H3-js time in ns:    6773878
+H3-node time in ns:  1234947
 ✔ h3IndexesAreNeighborsBenchmark
 
 getH3UnidirectionalEdge Benchmark:
-H3-js time in ns:    2859663
-H3-node time in ns:  1630762
+H3-js time in ns:    5293199
+H3-node time in ns:  1709837
 ✔ getH3UnidirectionalEdgeBenchmark
 
 h3UnidirectionalEdgeIsValid Benchmark:
-H3-js time in ns:    678197
-H3-node time in ns:  507790
+H3-js time in ns:    1208102
+H3-node time in ns:  487279
 ✔ h3UnidirectionalEdgeIsValidBenchmark
 
 getOriginH3IndexFromUnidirectionalEdge Benchmark:
-H3-js time in ns:    1061877
-H3-node time in ns:  818962
+H3-js time in ns:    2690489
+H3-node time in ns:  838847
 ✔ getOriginH3IndexFromUnidirectionalEdgeBenchmark
 
 getDestinationH3IndexFromUnidirectionalEdge Benchmark:
-H3-js time in ns:    1256017
-H3-node time in ns:  932105
+H3-js time in ns:    2303120
+H3-node time in ns:  899137
 ✔ getDestinationH3IndexFromUnidirectionalEdgeBenchmark
 
 getH3IndexesFromUnidirectionalEdge Benchmark:
-H3-js time in ns:    2077358
-H3-node time in ns:  1762693
+H3-js time in ns:    3650529
+H3-node time in ns:  1915532
 ✔ getH3IndexesFromUnidirectionalEdgeBenchmark
 
 getH3UnidirectionalEdgesFromHexagon Benchmark:
-H3-js time in ns:    4372965
-H3-node time in ns:  4076243
+H3-js time in ns:    6054690
+H3-node time in ns:  4248423
 ✔ getH3UnidirectionalEdgesFromHexagonBenchmark
 
 getH3UnidirectionalEdgeBoundary Benchmark:
-H3-js time in ns:    12775609
-H3-node time in ns:  9806594
+H3-js time in ns:    18813297
+H3-node time in ns:  9267771
 ✔ getH3UnidirectionalEdgeBoundaryBenchmark
 
 degsToRads Benchmark:
-H3-js time in ns:    86747
-H3-node time in ns:  211436
+H3-js time in ns:    45939
+H3-node time in ns:  185695
 ✔ degsToRadsBenchmark
 
 radsToDegs Benchmark:
-H3-js time in ns:    93456
-H3-node time in ns:  227887
+H3-js time in ns:    76681
+H3-node time in ns:  186188
 ✔ radsToDegsBenchmark
 
 numHexagons Benchmark:
-H3-js time in ns:    808198
-H3-node time in ns:  361962
+H3-js time in ns:    984968
+H3-node time in ns:  174963
 ✔ numHexagonsBenchmark
 
 edgeLength Benchmark:
-H3-js time in ns:    533990
-H3-node time in ns:  438234
+H3-js time in ns:    526063
+H3-node time in ns:  226033
 ✔ edgeLengthBenchmark
 
 hexArea Benchmark:
-H3-js time in ns:    514214
-H3-node time in ns:  446460
+H3-js time in ns:    559212
+H3-node time in ns:  247401
 ✔ hexAreaBenchmark
 
-OK: 360 assertions (12301ms)
-Done in 12.56s.
+getRes0Indexes Benchmark:
+H3-js time in ns:    75643777
+H3-node time in ns:  45794319
+✔ getRes0IndexesBenchmark
+
+OK: 380 assertions (19780ms)
+Done in 20.04s.
 ```
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.

@@ -39,6 +39,17 @@ const allowPentagonTest = (test, methodName, args) => {
   }
 }
 
+const allowPentagonLineTest = (test, methodName, args) => {
+  let node, js
+  try {
+    node = h3node[methodName](...args)
+    js = h3js[methodName](...args)
+    test.deepEqual(node, js)
+  } catch (e) {
+    test.ok(/.*Line.*/.test(e.message)) // Let pentagon encounters through
+  }
+}
+
 const benchmarkGen = (methodName, genArgs, useTryCatch = false, extraName = '') => test => {
   const runs = []
   for (let i = 0; i < 1000; i++) {
@@ -152,6 +163,9 @@ exportTest('experimentalLocalIjToH3', () => [
     j: Math.floor(Math.random() * 5 + 1),
   },
 ], allowPentagonTest);
+exportTest('h3Line', () => h3node.kRing(
+  h3node.geoToH3(...randCoords(), 9), Math.floor(Math.random() * 100)
+).filter((e, i, a) => i === 0 || i === a.length - 1), allowPentagonLineTest)
 exportTest('h3ToParent', () => [
   h3node.geoToH3(...randCoords(), 9),
   Math.floor(Math.random() * 9),
@@ -250,6 +264,7 @@ exportTest('hexArea', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
 ], almostEqualTest)
+exportTest('getRes0Indexes', () => [], simpleTest)
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -308,6 +323,9 @@ exportBenchmark('experimentalLocalIjToH3', () => [
     j: Math.floor(Math.random() * 5 + 1),
   },
 ], true);
+exportBenchmark('h3Line', () => h3node.kRing(
+  h3node.geoToH3(...randCoords(), 9), Math.floor(Math.random() * 100)
+).filter((e, i, a) => i === 0 || i === a.length - 1), true)
 exportBenchmark('h3ToParent', () => [
   h3node.geoToH3(...randCoords(), 9),
   Math.floor(Math.random() * 9),
@@ -405,6 +423,7 @@ exportBenchmark('hexArea', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
 ])
+exportBenchmark('getRes0Indexes', () => [])
 
 /* console.log(h3node.polyfill(
   [

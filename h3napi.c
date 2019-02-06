@@ -503,6 +503,50 @@ napiFn(experimentalLocalIjToH3) {
   return result;
 }
 
+napiFn(h3Line) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, origin);
+  napiGetH3IndexArg(1, destination);
+
+  int numHexes = h3LineSize(origin, destination);
+  if (numHexes <= 0) {
+    napi_throw_error(env, "EINVAL", "Line cannot be calculated");
+    return NULL;
+  }
+
+  H3Index* line = calloc(numHexes, sizeof(H3Index));
+  int errorCode = h3Line(origin, destination, line);
+  if (errorCode != 0) {
+    napi_throw_error(env, "EINVAL", "Line cannot be calculated");
+    free(line);
+    return NULL;
+  }
+
+  int arrayIndex = 0;
+  napiVarArray(result) {
+    free(line);
+    return NULL;
+  }
+  for (int i = 0; i < numHexes; i++) {
+    if (line[i] == 0) continue;
+
+    H3Index h3Num = line[i];
+    napiNapiH3Index(h3Num, h3Val) {
+      free(line);
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, h3Val) {
+      free(line);
+      return NULL;
+    }
+
+    arrayIndex++;
+  }
+
+  free(line);
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Hierarchy Functions                                                       //
 ///////////////////////////////////////////////////////////////////////////////
@@ -1221,6 +1265,31 @@ napiFn(hexArea) {
   }
 }
 
+napiFn(getRes0Indexes) {
+  int numHexes = res0IndexCount();
+  H3Index* res0Indexes = calloc(numHexes, sizeof(H3Index));
+  getRes0Indexes(res0Indexes);
+
+  napiVarArray(result) {
+    free(res0Indexes);
+    return NULL;
+  }
+  for (int i = 0; i < numHexes; i++) {
+    H3Index h3Num = res0Indexes[i];
+    napiNapiH3Index(h3Num, h3Val) {
+      free(res0Indexes);
+      return NULL;
+    }
+    napiSetNapiValue(result, i, h3Val) {
+      free(res0Indexes);
+      return NULL;
+    }
+  }
+
+  free(res0Indexes);
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -1245,6 +1314,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(h3Distance);
   napiExport(experimentalH3ToLocalIj);
   napiExport(experimentalLocalIjToH3);
+  napiExport(h3Line);
 
   // Hierarchy Functions
   napiExport(h3ToParent);
@@ -1272,6 +1342,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(numHexagons);
   napiExport(edgeLength);
   napiExport(hexArea);
+  napiExport(getRes0Indexes);
 
   return exports;
 }
