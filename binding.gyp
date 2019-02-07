@@ -31,6 +31,7 @@
         "OS==\"win\"",
         {
           "libraries": [
+            "msvcrt.lib",
             "../h3/bin/Release/h3.lib"
           ]
         }
