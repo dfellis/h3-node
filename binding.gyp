@@ -31,7 +31,7 @@
         "OS==\"win\"",
         {
           "libraries": [
-            "msvcrt.lib",
+            "<!(IF PROCESSOR_ARCHITECTURE == amd64 THEN echo libcmt.lib ELSE echo msvcrt.lib)",
             "../h3/bin/Release/h3.lib"
           ]
         }
