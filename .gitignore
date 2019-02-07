@@ -1,4 +1,5 @@
 node_modules/
 build/
+prebuilds/
 h3/
 yarn.lock
