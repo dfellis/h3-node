@@ -30,8 +30,11 @@
       [
         "OS==\"win\"",
         {
+          "variables": {
+            "winlib": "<!(IF PROCESSOR_ARCHITECTURE == amd64 THEN echo libcmt.lib ELSE echo msvcrt.lib END IF)"
+          },
           "libraries": [
-            "<!(IF PROCESSOR_ARCHITECTURE == amd64 THEN echo libcmt.lib ELSE echo msvcrt.lib END IF)",
+            "<(winlib)",
             "../h3/bin/Release/h3.lib"
           ]
         }
