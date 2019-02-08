@@ -31,7 +31,7 @@
         "OS==\"win\"",
         {
           "libraries": [
-            "<!(IF $env:platform == ia64 THEN echo libcmt.lib ELSE echo msvcrt.lib END IF)",
+            "<!(bash -c 'if [ \"$platform\" == \"x64\"] ; then echo libcmt.lib; else echo msvcrt.lib; fi')",
             "../h3/bin/Release/h3.lib"
           ]
         }
