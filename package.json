@@ -4,7 +4,7 @@
   "description": "H3 Bindings to node using N-API",
   "main": "index.js",
   "scripts": {
-    "prebuild": "bash -c \"npm run clean && git clone https://github.com/uber/h3 && cd h3 && git checkout v3.4.0 && if command -v make; then cmake . -DCMAKE_C_FLAGS=-fPIC && make; else echo $PATH && cmake . -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=True -DCMAKE_VS_PLATFORM_NAME=$Platform && msbuild.exe h3.vcxproj; fi && cd .. && prebuildify --target=node@`node --version | sed s/v//`\"",
+    "prebuild": "bash -c \"npm run clean && git clone https://github.com/uber/h3 && cd h3 && git checkout v3.4.0 && if command -v make; then cmake . -DCMAKE_C_FLAGS=-fPIC && make; else echo $PATH && cmake . -DCMAKE_WINDOWS_EXPORT_ALL_SYMBOLS=True -DCMAKE_VS_PLATFORM_NAME=${Platform} && msbuild.exe h3.vcxproj; fi && cd .. && prebuildify --target=node@`node --version | sed s/v//`\"",
     "install": "bash -c \"if node-gyp-build-test; then node-gyp-build; else npm run prebuild && node-gyp-build; fi\"",
     "rebuild": "rm -rf build && node-gyp-build",
     "clean": "node-gyp clean && rm -rf h3",
