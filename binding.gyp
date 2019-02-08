@@ -31,7 +31,7 @@
         "OS==\"win\"",
         {
           "libraries": [
-            "<!(IF %PROCESSOR_ARCHITECTURE% == amd64 THEN echo libcmt.lib ELSE echo msvcrt.lib END IF)",
+            "<!(IF $env:platform == ia64 THEN echo libcmt.lib ELSE echo msvcrt.lib END IF)",
             "../h3/bin/Release/h3.lib"
           ]
         }
