@@ -7,9 +7,9 @@ npm run clean &&
   git checkout v3.4.0 &&
   if command -v make; then
     if [[ "${ARCH}" == "ia32" ]]; then
-      cmake . -DCMAKE_C_FLAGS="-fPIC -m32" && make;
+      cmake . -DCMAKE_C_FLAGS="-fPIC -m32" && make h3;
     else
-      cmake . -DCMAKE_C_FLAGS=-fPIC && make;
+      cmake . -DCMAKE_C_FLAGS=-fPIC && make h3;
     fi
   else
     if [[ "${Platform}" == "x64" ]]; then
