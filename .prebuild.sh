@@ -8,7 +8,11 @@ npm run clean &&
   if command -v make; then
     cmake . -DCMAKE_C_FLAGS=-fPIC && make;
   else
-    cmake . -DCMAKE_VS_PLATFORM_NAME=${Platform} `if [[ "${Platform}" == "x64" ]]; then echo "-G \"Visual Studio 14 Win64\""; fi` && msbuild.exe h3.vcxproj;
+    if [[ "${Platform}" == "x64" ]]; then
+      cmake . -DCMAKE_VS_PLATFORM_NAME=${Platform} -G "Visual Studio 14 Win64" && msbuild.exe h3.vcxproj;
+    else
+      cmake . -DCMAKE_VS_PLATFORM_NAME=${Platform} && msbuild.exe h3.vcxproj;
+    fi
   fi &&
   cd .. &&
   prebuildify --target=node@`node --version | sed s/v//`
