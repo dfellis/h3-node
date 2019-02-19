@@ -5,6 +5,8 @@ skip_branch_with_pr: true
 environment:
   matrix:
     - nodejs_version: "Current"
+    - nodejs_version: "10.15.1"
+    - nodejs_version: "8.15.0"
 
 configuration: Release
 platform:
@@ -23,7 +25,7 @@ test_script:
 
 artifacts:
   - path: prebuilds
-    name: $(APPVEYOR_REPO_TAG_NAME)-win-$(PLATFORM)
+    name: $(APPVEYOR_REPO_TAG_NAME)-$(nodejs_version)-win-$(PLATFORM)
     type: zip
 
 deploy:
