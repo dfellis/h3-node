@@ -31,7 +31,7 @@
         "OS==\"win\"",
         {
           "libraries": [
-            "<!(bash -c 'if [ \"${Platform}\" == \"x64\" ]; then echo msvcrt.lib; else echo msvcrt.lib; fi')",
+            "msvcrt.lib",
             "../h3/bin/Release/h3.lib"
           ]
         }
