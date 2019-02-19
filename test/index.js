@@ -35,6 +35,8 @@ const allowPentagonTest = (test, methodName, args) => {
     js = h3js[methodName](...args)
     test.deepEqual(node, js)
   } catch (e) {
+    console.log(node)
+    console.log(js)
     test.ok(/.*[pP]entagon.*/.test(e.message)) // Let pentagon encounters through
   }
 }
@@ -163,9 +165,10 @@ exportTest('experimentalLocalIjToH3', () => [
     j: Math.floor(Math.random() * 5 + 1),
   },
 ], allowPentagonTest);
-exportTest('h3Line', () => h3node.kRing(
+// Pending solution to H3 issue #184: https://github.com/uber/h3/issues/184
+/* exportTest('h3Line', () => h3node.kRing(
   h3node.geoToH3(...randCoords(), 9), Math.floor(Math.random() * 100)
-).filter((e, i, a) => i === 0 || i === a.length - 1), allowPentagonLineTest)
+).filter((e, i, a) => i === 0 || i === a.length - 1), allowPentagonLineTest) */
 exportTest('h3ToParent', () => [
   h3node.geoToH3(...randCoords(), 9),
   Math.floor(Math.random() * 9),
