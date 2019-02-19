@@ -37,4 +37,7 @@ deploy:
       secure: RxUjCnPCpne4T4OP1KaftGZWrD0oj82qjjFVB7oUL7YmfpBmnFgPSKyyFCMhKBqj
     on:
       appveyor_repo_tag: true
-      nodejs_version: "Current"
+      nodejs_version:
+        - "Current"
+        - "10.15.1"
+        - "8.15.0"
