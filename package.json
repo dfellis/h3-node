@@ -4,7 +4,7 @@
   "description": "H3 Bindings to node using N-API",
   "main": "index.js",
   "scripts": {
-    "prebuild": "./.prebuild.sh",
+    "prebuild": "bash .prebuild.sh",
     "install": "bash -c \"if node-gyp-build-test; then node-gyp-build; else npm run prebuild && node-gyp-build; fi\"",
     "rebuild": "rm -rf build && node-gyp-build",
     "clean": "node-gyp clean && rm -rf h3",
