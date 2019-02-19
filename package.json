@@ -4,8 +4,10 @@
   "description": "H3 Bindings to node using N-API",
   "main": "index.js",
   "scripts": {
-    "install": "rm -rf build && rm -rf h3 && git clone https://github.com/uber/h3 && cd h3 && git checkout v3.4.0 && cmake . -DCMAKE_C_FLAGS=-fPIC && make && cd .. && node-gyp-build",
+    "prebuild": "bash .prebuild.sh",
+    "install": "bash -c \"if node-gyp-build-test; then node-gyp-build; else npm run prebuild && node-gyp-build; fi\"",
     "rebuild": "rm -rf build && node-gyp-build",
+    "clean": "node-gyp clean && rm -rf h3",
     "test": "nodeunit test"
   },
   "repository": {
@@ -24,11 +26,13 @@
   },
   "homepage": "https://github.com/dfellis/h3-node#readme",
   "dependencies": {
+    "node-gyp": "^3.8.0",
     "node-gyp-build": "^3.5.0"
   },
   "devDependencies": {
     "h3-js": "^3.4.0",
     "nodeunit": "^0.11.3",
-    "prebuildify": "^2.9.1"
+    "prebuildify": "^2.9.1",
+    "prebuildify-ci": "^1.0.4"
   }
 }

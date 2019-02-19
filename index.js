@@ -1,5 +1,5 @@
 module.exports = {
-  ...require('./build/Release/h3node'),
+  ...require('node-gyp-build')(__dirname),
   UNITS: {
     m: 'm',
     km: 'km',
