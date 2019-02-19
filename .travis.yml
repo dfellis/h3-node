@@ -1,7 +1,9 @@
 sudo: false
 language: node_js
 node_js:
-- node
+  - node
+  - 10
+  - 8
 addons:
   apt:
     sources:
