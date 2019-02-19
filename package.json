@@ -27,12 +27,12 @@
   "homepage": "https://github.com/dfellis/h3-node#readme",
   "dependencies": {
     "node-gyp": "^3.8.0",
-    "node-gyp-build": "^3.5.0"
+    "node-gyp-build": "^3.5.0",
+    "prebuildify": "^2.9.1"
   },
   "devDependencies": {
     "h3-js": "^3.4.0",
     "nodeunit": "^0.11.3",
-    "prebuildify": "^2.9.1",
     "prebuildify-ci": "^1.0.4"
   }
 }
