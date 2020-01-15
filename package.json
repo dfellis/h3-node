@@ -1,6 +1,6 @@
 {
   "name": "h3-node",
-  "version": "3.4.11",
+  "version": "3.6.2",
   "description": "H3 Bindings to node using N-API",
   "main": "index.js",
   "scripts": {
@@ -31,7 +31,7 @@
     "prebuildify": "^2.9.1"
   },
   "devDependencies": {
-    "h3-js": "^3.4.0",
+    "h3-js": "^3.6.3",
     "nodeunit": "^0.11.3",
     "prebuildify-ci": "^1.0.4"
   }

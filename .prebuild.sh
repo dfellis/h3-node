@@ -4,7 +4,7 @@ set -vex;
 npm run clean &&
   git clone https://github.com/uber/h3 &&
   cd h3 &&
-  git checkout v3.4.0 &&
+  git checkout v3.6.2 &&
   if command -v make; then
     if [[ "${ARCH}" == "ia32" ]]; then
       cmake . -DCMAKE_C_FLAGS="-fPIC -m32" && make h3;
