@@ -3,3 +3,4 @@ build/
 prebuilds/
 h3/
 yarn.lock
+package-lock.json
