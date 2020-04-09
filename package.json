@@ -26,9 +26,9 @@
   },
   "homepage": "https://github.com/dfellis/h3-node#readme",
   "dependencies": {
-    "node-gyp": "^3.8.0",
-    "node-gyp-build": "^3.5.0",
-    "prebuildify": "^2.9.1"
+    "node-gyp": "^6.1.0",
+    "node-gyp-build": "^4.2.1",
+    "prebuildify": "^3.0.4"
   },
   "devDependencies": {
     "h3-js": "^3.6.3",
