@@ -1,6 +1,6 @@
 # H3-Node
 
-[![Build Status](https://travis-ci.org/dfellis/h3-node.svg?branch=master)](https://travis-ci.org/dfellis/h3-node) [![Build status](https://ci.appveyor.com/api/projects/status/eli9fi8on6tqiy0r?svg=true)](https://ci.appveyor.com/project/dfellis/h3-node) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Unit Testing](https://github.com/dfellis/h3-node/workflows/Unit%20Testing/badge.svg) [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 H3 Bindings to Node using N-API
 
@@ -79,7 +79,6 @@ const resStats = Array.from(new Array(16), (x, res) => ({
   },
 }))
 const res0Indexes = h3.getRes0Indexes()
-	
 ```
 
 ## Why another H3 for Node?
