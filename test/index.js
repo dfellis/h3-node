@@ -18,6 +18,9 @@ const testGen = (methodName, genArgs, testFn) => test => {
 const simpleTest = (test, methodName, args) =>
   test.deepEqual(h3node[methodName](...args), h3js[methodName](...args))
 
+const simpleArrTest = (test, methodName, args) =>
+  test.deepEqual(h3node[methodName](...args).sort(), h3js[methodName](...args).sort())
+
 const almostEqualTest = (test, methodName, args) => {
   let almostEqual = true
   const node = h3node[methodName](...args)
@@ -191,7 +194,7 @@ exportTest('polyfill', () => [
     [37.77, -122.43],
   ],
   6,
-], simpleTest)
+], simpleArrTest)
 exportTest('polyfill', () => [
   [
     [
@@ -209,7 +212,7 @@ exportTest('polyfill', () => [
     ],
   ],
   6,
-], simpleTest, 'WithHoles')
+], simpleArrTest, 'WithHoles')
 exportTest('h3SetToMultiPolygon', () => [
   h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
 ], almostEqualTest)
@@ -223,12 +226,12 @@ exportTest('h3SetToMultiPolygon', () => [
     ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 3),
   ])]
 ], almostEqualTest, 'TrueMultiPolygon')
-exportTest('h3IndexesAreNeighbors', () => 
+exportTest('h3IndexesAreNeighbors', () =>
   randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2),
   simpleTest)
 exportTest('getH3UnidirectionalEdge', () => {
   const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [randIndex, h3node.kRing(randIndex, 1).pop()] 
+  return [randIndex, h3node.kRing(randIndex, 1).pop()]
 }, simpleTest)
 exportTest('h3UnidirectionalEdgeIsValid', () => {
   const randIndex = h3node.geoToH3(...randCoords(), 9)
@@ -383,11 +386,11 @@ exportBenchmark('h3SetToMultiPolygon', () => [
     ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 3),
   ])]
 ], false, 'TrueMultiPolygon')
-exportBenchmark('h3IndexesAreNeighbors', () => 
+exportBenchmark('h3IndexesAreNeighbors', () =>
   randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2))
 exportBenchmark('getH3UnidirectionalEdge', () => {
   const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [randIndex, h3node.kRing(randIndex, 1).pop()] 
+  return [randIndex, h3node.kRing(randIndex, 1).pop()]
 })
 exportBenchmark('h3UnidirectionalEdgeIsValid', () => {
   const randIndex = h3node.geoToH3(...randCoords(), 9)
