@@ -49,6 +49,7 @@ jobs:
     - name: Generate Artifact
       run: |
         rm -rf node_modules/
+        rm -rf h3/
         base=`basename $PWD`
         cd -P ..
         tar -czf /tmp/h3-node-ubuntu-${{ matrix.node-version }}.tar.gz $base
@@ -85,6 +86,7 @@ jobs:
     - name: Generate Artifact
       run: |
         rm -r -fo node_modules
+        rm -r -fo h3
         Compress-Archive -Path "$(Get-Location)" -DestinationPath "$(Join-Path (Get-Location).Path 'h3-node-windows-${{ matrix.node-version }}.zip')"
 
     - name: Upload Artifact
@@ -119,6 +121,7 @@ jobs:
     - name: Generate Artifact
       run: |
         rm -rf node_modules/
+        rm -rf h3/
         base=`basename $PWD`
         cd -P ..
         tar -czf /tmp/h3-node-macos-${{ matrix.node-version }}.tar.gz $base
