@@ -7,7 +7,7 @@ on:
 name: Create Release
 
 jobs:
-  create-release:
+  create_release:
     name: Create Release
     runs-on: ubuntu-latest
     steps:
@@ -26,7 +26,7 @@ jobs:
           draft: false
           prerelease: false
   ubuntu:
-    needs: create-release
+    needs: create_release
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -55,13 +55,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ jobs.create-release.steps.create_release.outputs.upload_url }}
+        upload_url: ${{ jobs.create_release.steps.create_release.outputs.upload_url }}
         asset_path: /tmp/h3-node-ubuntu-${{ matrix.node-version }}.tar.gz
         asset_name: h3-node-ubuntu-${{ matrix.node-version }}.tar.gz
         asset_content_type: application/gzip
 
   windows:
-    needs: create-release
+    needs: create_release
     runs-on: windows-latest
     strategy:
       matrix:
@@ -88,13 +88,13 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ jobs.create-release.steps.create_release.outputs.upload_url }}
+        upload_url: ${{ jobs.create_release.steps.create_release.outputs.upload_url }}
         asset_path: h3-node-windows-${{ matrix.node-version }}.zip
         asset_name: h3-node-windows-${{ matrix.node-version }}.zip
         asset_content_type: application/zip
 
   macos:
-    needs: create-release
+    needs: create_release
     runs-on: macos-latest
     strategy:
       matrix:
@@ -123,7 +123,7 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        upload_url: ${{ jobs.create-release.steps.create_release.outputs.upload_url }}
+        upload_url: ${{ jobs.create_release.steps.create_release.outputs.upload_url }}
         asset_path: /tmp/h3-node-macos-${{ matrix.node-version }}.tar.gz
         asset_name: h3-node-macos-${{ matrix.node-version }}.tar.gz
         asset_content_type: application/gzip
