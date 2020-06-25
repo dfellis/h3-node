@@ -7,7 +7,7 @@ COMMON_CMAKE_ARGS=-DCMAKE_BUILD_TYPE=Release
 npm run clean &&
   git clone https://github.com/uber/h3 &&
   cd h3 &&
-  git checkout v3.6.2 &&
+  git checkout v3.6.4 &&
   if command -v make; then
     if [[ "${ARCH}" == "ia32" ]]; then
       cmake . ${COMMON_CMAKE_ARGS} -DCMAKE_C_FLAGS="-fPIC -m32";

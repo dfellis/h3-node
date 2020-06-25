@@ -79,7 +79,6 @@ const resStats = Array.from(new Array(16), (x, res) => ({
   },
 }))
 const res0Indexes = h3.getRes0Indexes()
-	
 ```
 
 ## Why another H3 for Node?
