@@ -83,8 +83,7 @@ jobs:
 
     - name: Generate Artifact
       run: |
-        cd ..
-        Compress-Archive -Path (Get-Location) -DestinationPath (Get-Location + '/h3-node-windows-${{ matrix.node-version }}.zip')
+        Compress-Archive -Path (Get-Location) -DestinationPath (Join-Path (Get-Location).Path 'h3-node-windows-${{ matrix.node-version }}.zip')
 
     - name: Upload Artifact
       uses: actions/upload-release-asset@v1
@@ -92,7 +91,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: (Get-Location + 'h3-node-windows-${{ matrix.node-version }}.zip')
+        asset_path: (Join-Path (Get-Location).Path 'h3-node-windows-${{ matrix.node-version }}.zip')
         asset_name: h3-node-windows-${{ matrix.node-version }}.zip
         asset_content_type: application/zip
 
