@@ -1,8 +1,6 @@
 name: Artifact Generation
 
-on:
-  release:
-    types: [prereleased]
+on: release
 
 jobs:
   ubuntu:
