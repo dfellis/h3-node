@@ -85,7 +85,7 @@ jobs:
     - name: Generate Artifact
       run: |
         rm -r -fo node_modules
-        Compress-Archive -Path (Get-Location) -DestinationPath (Join-Path (Get-Location).Path 'h3-node-windows-${{ matrix.node-version }}.zip')
+        Compress-Archive -Path "$(Get-Location)" -DestinationPath "$(Join-Path (Get-Location).Path 'h3-node-windows-${{ matrix.node-version }}.zip')"
 
     - name: Upload Artifact
       uses: actions/upload-release-asset@v1
