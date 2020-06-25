@@ -84,7 +84,7 @@ jobs:
 
     - name: Generate Artifact
       run: |
-        rm -rf node_modules/
+        rm -r -fo node_modules
         Compress-Archive -Path (Get-Location) -DestinationPath (Join-Path (Get-Location).Path 'h3-node-windows-${{ matrix.node-version }}.zip')
 
     - name: Upload Artifact
