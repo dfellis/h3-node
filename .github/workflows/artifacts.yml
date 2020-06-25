@@ -2,7 +2,7 @@ name: Artifact Generation
 
 on:
   release:
-    types: [created]
+    types: [prereleased]
 
 jobs:
   ubuntu:
