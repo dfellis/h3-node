@@ -113,6 +113,22 @@ const exportTest = (methodName, genArgs, testFn, extraName = '') =>
 const exportBenchmark = (methodName, genArgs, useTryCatch = false, extraName = '') =>
   exports[`${methodName}${extraName}Benchmark`] = benchmarkGen(methodName, genArgs, useTryCatch, extraName)
 
+exports['h3IsValid_array'] = test => {
+    test.ok(h3node.h3IsValid([0x3fffffff, 0x8528347]), 'Integer H3 index is considered an index');
+    test.ok(
+        !h3node.h3IsValid([0x73fffffff, 0xff2834]),
+        'Integer with incorrect bits is not considered an index'
+    );
+    // TODO: This differs from h3-js, in these cases h3-js would return false rather than throwing
+    test.throws(() => h3node.h3IsValid([]), 'Empty array is not valid');
+    test.throws(() => h3node.h3IsValid([1]), 'Array with a single element is not valid');
+    test.throws(() =>
+        h3node.h3IsValid([0x3fffffff, 0x8528347, 0]),
+        'Array with an additional element is not valid'
+    );
+    test.done();
+};
+
 exportTest('geoToH3', () => [...randCoords(), 9], simpleTest)
 exportTest('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)], almostEqualTest)
 exportTest('h3ToGeoBoundary', () => [h3node.geoToH3(...randCoords(), 9)], almostEqualTest)

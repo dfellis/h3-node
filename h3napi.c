@@ -70,15 +70,35 @@
   if (napiArrayLen ## A ## N != napi_ok)
 
 #define napiGetH3IndexArg(I, O) \
+  H3Index O;\
   char O ## Str[17];\
   size_t O ## StrCount;\
   \
-  if (napi_get_value_string_utf8(env, argv[I], O ## Str, 17, &O ## StrCount) != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Expected string h3 index in arg " #I);\
-    return NULL;\
-  }\
-  \
-  H3Index O = stringToH3(O ## Str);
+  if (napi_get_value_string_utf8(env, argv[I], O ## Str, 17, &O ## StrCount) == napi_ok) {\
+    O = stringToH3(O ## Str);\
+  } else {\
+    napiGetNapiArg(I, O ## Arr);\
+    uint32_t O ## ArrSz;\
+    if (napi_get_array_length(env, O ## Arr, &(O ## ArrSz)) != napi_ok) {\
+      napi_throw_error(env, "EINVAL", "Expected string or array H3 index in arg " #I);\
+      return NULL;\
+    }\
+    if (O ## ArrSz != 2) {\
+      napi_throw_error(env, "EINVAL", "Invalid length array H3 index in arg " #I);\
+      return NULL;\
+    }\
+    napi_value O ## Val0, O ## Val1;\
+    if (napi_get_element(env, O ## Arr, 0, &(O ## Val0)) != napi_ok || napi_get_element(env, O ## Arr, 1, &(O ## Val1)) != napi_ok) {\
+      napi_throw_error(env, "EINVAL", "Invalid array H3 index in arg " #I);\
+      return NULL;\
+    }\
+    uint32_t O ## Part0, O ## Part1;\
+    if (napi_get_value_uint32(env, O ## Val0, &(O ## Part0)) != napi_ok || napi_get_value_uint32(env, O ## Val1, &(O ## Part1)) != napi_ok) {\
+      napi_throw_error(env, "EINVAL", "Invalid integer array H3 index in arg " #I);\
+      return NULL;\
+    }\
+    O = ((H3Index)(O ## Part1) << 32) | (O ## Part0);\
+  }
 
 #define napiGetH3Index(I, O) \
   char O ## Str[17];\
