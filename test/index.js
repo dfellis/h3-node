@@ -122,6 +122,7 @@ exports['h3IsValid_array'] = test => {
     // TODO: This differs from h3-js, in these cases h3-js would return false rather than throwing
     test.throws(() => h3node.h3IsValid([]), 'Empty array is not valid');
     test.throws(() => h3node.h3IsValid([1]), 'Array with a single element is not valid');
+    test.throws(() => h3node.h3IsValid([1, 'a']), 'Array with invalid elements is not valid');
     test.throws(() =>
         h3node.h3IsValid([0x3fffffff, 0x8528347, 0]),
         'Array with an additional element is not valid'

@@ -71,18 +71,16 @@
 
 #define napiGetH3IndexArg(I, O) \
   H3Index O;\
+  /*For string form input*/\
   char O ## Str[17];\
   size_t O ## StrCount;\
+  /*For array form input*/\
+  napiGetNapiArg(I, O ## Arr);\
+  uint32_t O ## ArrSz;\
   \
   if (napi_get_value_string_utf8(env, argv[I], O ## Str, 17, &O ## StrCount) == napi_ok) {\
     O = stringToH3(O ## Str);\
-  } else {\
-    napiGetNapiArg(I, O ## Arr);\
-    uint32_t O ## ArrSz;\
-    if (napi_get_array_length(env, O ## Arr, &(O ## ArrSz)) != napi_ok) {\
-      napi_throw_error(env, "EINVAL", "Expected string or array H3 index in arg " #I);\
-      return NULL;\
-    }\
+  } else if (napi_get_array_length(env, O ## Arr, &(O ## ArrSz)) == napi_ok) {\
     if (O ## ArrSz != 2) {\
       napi_throw_error(env, "EINVAL", "Invalid length array H3 index in arg " #I);\
       return NULL;\
@@ -98,6 +96,9 @@
       return NULL;\
     }\
     O = ((H3Index)(O ## Part1) << 32) | (O ## Part0);\
+  } else {\
+    napi_throw_error(env, "EINVAL", "Expected string or array H3 index in arg " #I);\
+    return NULL;\
   }
 
 #define napiGetH3Index(I, O) \
