@@ -113,6 +113,7 @@ const exportTest = (methodName, genArgs, testFn, extraName = '') =>
 const exportBenchmark = (methodName, genArgs, useTryCatch = false, extraName = '') =>
   exports[`${methodName}${extraName}Benchmark`] = benchmarkGen(methodName, genArgs, useTryCatch, extraName)
 
+
 exports['h3IsValid_array'] = test => {
     test.ok(h3node.h3IsValid([0x3fffffff, 0x8528347]), 'Integer H3 index is considered an index');
     test.ok(
@@ -126,6 +127,22 @@ exports['h3IsValid_array'] = test => {
     test.throws(() =>
         h3node.h3IsValid([0x3fffffff, 0x8528347, 0]),
         'Array with an additional element is not valid'
+    );
+    test.done();
+};
+
+exports['h3IsValid_uint32array'] = test => {
+    test.ok(h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347])), 'Integer H3 index is considered an index');
+    test.ok(
+        !h3node.h3IsValid(new Uint32Array([0x73fffffff, 0xff2834])),
+        'Integer with incorrect bits is not considered an index'
+    );
+    // TODO: This differs from h3-js, in these cases h3-js would return false rather than throwing
+    test.throws(() => h3node.h3IsValid(new Uint32Array([])), 'Empty array is not valid');
+    test.throws(() => h3node.h3IsValid(new Uint32Array([1])), 'Array with a single element is not valid');
+    test.throws(
+        () => h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347, 1])),
+        'Array with too many elements is not valid'
     );
     test.done();
 };

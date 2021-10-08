@@ -74,24 +74,34 @@
   /*For string form input*/\
   char O ## Str[17];\
   size_t O ## StrCount;\
+  /*For typedarray form input*/\
+  napi_typedarray_type O ## Type;\
+  size_t O ## Length;\
+  void* O ## Data;\
   /*For array form input*/\
   napiGetNapiArg(I, O ## Arr);\
   uint32_t O ## ArrSz;\
   \
   if (napi_get_value_string_utf8(env, argv[I], O ## Str, 17, &O ## StrCount) == napi_ok) {\
     O = stringToH3(O ## Str);\
-  } else if (napi_get_array_length(env, O ## Arr, &(O ## ArrSz)) == napi_ok) {\
+  } else if (napi_get_typedarray_info(env, O ## Arr, &O ## Type, &O ## Length, &O ## Data, NULL, NULL) == napi_ok) {\
+    if (O ## Type != napi_uint32_array || O ## Length != 2) {\
+      napi_throw_error(env, "EINVAL", "Invalid Uint32Array H3 index in arg " #I);\
+      return NULL;\
+    }\
+    O = ((H3Index)*(((uint32_t*)O ## Data) + 1) << 32) | *((uint32_t*)O ## Data);\
+  } else if (napi_get_array_length(env, O ## Arr, &O ## ArrSz) == napi_ok) {\
     if (O ## ArrSz != 2) {\
       napi_throw_error(env, "EINVAL", "Invalid length array H3 index in arg " #I);\
       return NULL;\
     }\
     napi_value O ## Val0, O ## Val1;\
-    if (napi_get_element(env, O ## Arr, 0, &(O ## Val0)) != napi_ok || napi_get_element(env, O ## Arr, 1, &(O ## Val1)) != napi_ok) {\
+    if (napi_get_element(env, O ## Arr, 0, &O ## Val0) != napi_ok || napi_get_element(env, O ## Arr, 1, &O ## Val1) != napi_ok) {\
       napi_throw_error(env, "EINVAL", "Invalid array H3 index in arg " #I);\
       return NULL;\
     }\
     uint32_t O ## Part0, O ## Part1;\
-    if (napi_get_value_uint32(env, O ## Val0, &(O ## Part0)) != napi_ok || napi_get_value_uint32(env, O ## Val1, &(O ## Part1)) != napi_ok) {\
+    if (napi_get_value_uint32(env, O ## Val0, &O ## Part0) != napi_ok || napi_get_value_uint32(env, O ## Val1, &O ## Part1) != napi_ok) {\
       napi_throw_error(env, "EINVAL", "Invalid integer array H3 index in arg " #I);\
       return NULL;\
     }\
