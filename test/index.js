@@ -113,6 +113,64 @@ const exportTest = (methodName, genArgs, testFn, extraName = '') =>
 const exportBenchmark = (methodName, genArgs, useTryCatch = false, extraName = '') =>
   exports[`${methodName}${extraName}Benchmark`] = benchmarkGen(methodName, genArgs, useTryCatch, extraName)
 
+// h3IsValid has unique input parsing logic to return false rather than throw on invalid input
+exports['h3IsValid_array'] = test => {
+    test.equal(h3node.h3IsValid([0x3fffffff, 0x8528347]), true, 'Integer H3 index is considered an index');
+    test.equal(
+        h3node.h3IsValid([0x73fffffff, 0xff2834]), false,
+        'Integer with incorrect bits is not considered an index'
+    );
+    test.equal(h3node.h3IsValid([]), false, 'Empty array is not valid');
+    test.equal(h3node.h3IsValid([1]), false, 'Array with a single element is not valid');
+    test.equal(h3node.h3IsValid([1, 'a']), false, 'Array with invalid elements is not valid');
+    test.equal(h3node.h3IsValid([0x3fffffff, 0x8528347, 0]), false,
+        'Array with an additional element is not valid'
+    );
+    test.done();
+};
+
+exports['h3IsValid_uint32array'] = test => {
+    test.equal(h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347])), true, 'Integer H3 index is considered an index');
+    test.equal(
+        h3node.h3IsValid(new Uint32Array([0x73fffffff, 0xff2834])), false,
+        'Integer with incorrect bits is not considered an index'
+    );
+    test.equal(h3node.h3IsValid(new Uint32Array([])), false, 'Empty array is not valid');
+    test.equal(h3node.h3IsValid(new Uint32Array([1])), false, 'Array with a single element is not valid');
+    test.equal(h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347, 1])), false,
+        'Array with too many elements is not valid'
+    );
+    test.done();
+};
+
+// Exercise the macro used to reading H3 index input from Node
+exports['h3ToGeo_array'] = test => {
+    test.deepEqual(h3node.h3ToGeo([0x3fffffff, 0x8528347]), h3node.h3ToGeo('85283473fffffff'), 'Integer H3 index is considered an index');
+    test.deepEqual(h3node.h3ToGeo([0x73fffffff, 0xff2834]), h3node.h3ToGeo('ff28343fffffff'),
+        'Integer with incorrect bits handled consistently'
+    );
+    test.throws(() => h3node.h3ToGeo([]), 'Empty array is not valid');
+    test.throws(() => h3node.h3ToGeo([1]), 'Array with a single element is not valid');
+    test.throws(() => h3node.h3ToGeo([1, 'a']), 'Array with invalid elements is not valid');
+    test.throws(() => h3node.h3ToGeo([0x3fffffff, 0x8528347, 0]),
+        'Array with an additional element is not valid'
+    );
+    test.done();
+};
+
+exports['h3ToGeo_uint32array'] = test => {
+    test.deepEqual(h3node.h3ToGeo(new Uint32Array([0x3fffffff, 0x8528347])), h3node.h3ToGeo('85283473fffffff'), 'Integer H3 index is considered an index');
+    test.deepEqual(h3node.h3ToGeo(new Uint32Array([0x73fffffff, 0xff2834])), h3node.h3ToGeo('ff28343fffffff'),
+        'Integer with incorrect bits handled consistently'
+    );
+    test.throws(() => h3node.h3ToGeo(new Uint32Array([])), 'Empty array is not valid');
+    test.throws(() => h3node.h3ToGeo(new Uint32Array([1])), 'Array with a single element is not valid');
+    test.throws(() => h3node.h3ToGeo(new Uint32Array([0x3fffffff, 0x8528347, 1])),
+        'Array with too many elements is not valid'
+    );
+    test.done();
+};
+
 exportTest('geoToH3', () => [...randCoords(), 9], simpleTest)
 exportTest('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)], almostEqualTest)
 exportTest('h3ToGeoBoundary', () => [h3node.geoToH3(...randCoords(), 9)], almostEqualTest)
