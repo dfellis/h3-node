@@ -115,29 +115,29 @@ const exportBenchmark = (methodName, genArgs, useTryCatch = false, extraName = '
 
 // h3IsValid has unique input parsing logic to return false rather than throw on invalid input
 exports['h3IsValid_array'] = test => {
-    test.ok(h3node.h3IsValid([0x3fffffff, 0x8528347]), 'Integer H3 index is considered an index');
-    test.ok(
-        !h3node.h3IsValid([0x73fffffff, 0xff2834]),
+    test.equal(h3node.h3IsValid([0x3fffffff, 0x8528347]), true, 'Integer H3 index is considered an index');
+    test.equal(
+        h3node.h3IsValid([0x73fffffff, 0xff2834]), false,
         'Integer with incorrect bits is not considered an index'
     );
-    test.ok(!h3node.h3IsValid([]), 'Empty array is not valid');
-    test.ok(!h3node.h3IsValid([1]), 'Array with a single element is not valid');
-    test.ok(!h3node.h3IsValid([1, 'a']), 'Array with invalid elements is not valid');
-    test.ok(!h3node.h3IsValid([0x3fffffff, 0x8528347, 0]),
+    test.equal(h3node.h3IsValid([]), false, 'Empty array is not valid');
+    test.equal(h3node.h3IsValid([1]), false, 'Array with a single element is not valid');
+    test.equal(h3node.h3IsValid([1, 'a']), false, 'Array with invalid elements is not valid');
+    test.equal(h3node.h3IsValid([0x3fffffff, 0x8528347, 0]), false,
         'Array with an additional element is not valid'
     );
     test.done();
 };
 
 exports['h3IsValid_uint32array'] = test => {
-    test.ok(h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347])), 'Integer H3 index is considered an index');
-    test.ok(
-        !h3node.h3IsValid(new Uint32Array([0x73fffffff, 0xff2834])),
+    test.equal(h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347])), true, 'Integer H3 index is considered an index');
+    test.equal(
+        h3node.h3IsValid(new Uint32Array([0x73fffffff, 0xff2834])), false,
         'Integer with incorrect bits is not considered an index'
     );
-    test.ok(!h3node.h3IsValid(new Uint32Array([])), 'Empty array is not valid');
-    test.ok(!h3node.h3IsValid(new Uint32Array([1])), 'Array with a single element is not valid');
-    test.ok(!h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347, 1])),
+    test.equal(h3node.h3IsValid(new Uint32Array([])), false, 'Empty array is not valid');
+    test.equal(h3node.h3IsValid(new Uint32Array([1])), false, 'Array with a single element is not valid');
+    test.equal(h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347, 1])), false,
         'Array with too many elements is not valid'
     );
     test.done();
