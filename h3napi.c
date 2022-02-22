@@ -1517,6 +1517,33 @@ napiFn(getRes0Indexes) {
   return result;
 }
 
+napiFn(getPentagonIndexes) {
+  napiArgs(1);
+  napiGetArg(0, int32, int, res);
+
+  H3Index* pentagonIndexes = calloc(12, sizeof(H3Index));
+  getPentagonIndexes(res, pentagonIndexes);
+
+  napiVarArray(result) {
+    free(pentagonIndexes);
+    return NULL;
+  }
+  for (int i = 0; i < 12; i++) {
+    H3Index h3Num = pentagonIndexes[i];
+    napiNapiH3Index(h3Num, h3Val) {
+      free(pentagonIndexes);
+      return NULL;
+    }
+    napiSetNapiValue(result, i, h3Val) {
+      free(pentagonIndexes);
+      return NULL;
+    }
+  }
+
+  free(pentagonIndexes);
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -1575,6 +1602,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(cellArea);
   napiExport(pointDist);
   napiExport(getRes0Indexes);
+  napiExport(getPentagonIndexes);
 
   return exports;
 }

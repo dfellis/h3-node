@@ -352,6 +352,7 @@ exportTest('pointDist', () => [
   Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
 ], almostEqualTest)
 exportTest('getRes0Indexes', () => [], simpleTest)
+exportTest('getPentagonIndexes', () => [Math.floor(Math.random() * 16)], simpleArrTest)
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -534,6 +535,7 @@ exportBenchmark('pointDist', () => [
   Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
 ])
 exportBenchmark('getRes0Indexes', () => [])
+exportBenchmark('getPentagonIndexes', () => [Math.floor(Math.random() * 16)])
 
 /* console.log(h3node.polyfill(
   [
