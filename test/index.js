@@ -187,6 +187,9 @@ exportTest('h3IsResClassIII', () => [
 exportTest('h3IsPentagon', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
 ], simpleTest)
+exportTest('h3GetFaces', () => [
+  h3node.geoToH3(...randCoords(), 2)
+], simpleTest)
 exportTest('kRing', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),

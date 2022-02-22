@@ -372,6 +372,25 @@ napiFn(h3IsPentagon) {
   return result;
 }
 
+napiFn(h3GetFaces) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, h3);
+
+  int max = maxFaceCount(h3);
+  int* out = calloc(max, sizeof(int));
+  h3GetFaces(h3, out);
+
+  napiFixedArray(result, max);
+  for (int i = 0; i < max; i++) {
+    if (out[i] >= 0) {
+      napiSetValue(result, i, int32, out[i], temp);
+    }
+  }
+  free(out);
+
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Traversal Functions                                                       //
 ///////////////////////////////////////////////////////////////////////////////
@@ -1377,6 +1396,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(h3IsValid);
   napiExport(h3IsResClassIII);
   napiExport(h3IsPentagon);
+  napiExport(h3GetFaces);
 
   // Traversal Functions
   napiExport(kRing);
