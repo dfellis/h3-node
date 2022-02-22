@@ -335,10 +335,14 @@ exportTest('hexArea', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
 ], almostEqualTest)
+exportTest('cellArea', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.random() < 0.34 ? h3node.UNITS.m2 : Math.random() > 0.5 ? h3node.UNITS.km2 : h3node.UNITS.rads2
+], almostEqualTest)
 exportTest('pointDist', () => [
   randCoords(),
   randCoords(),
-  Math.random() > 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
+  Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
 ], almostEqualTest)
 exportTest('getRes0Indexes', () => [], simpleTest)
 
@@ -506,10 +510,14 @@ exportBenchmark('hexArea', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
 ])
+exportBenchmark('cellArea', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.random() < 0.34 ? h3node.UNITS.m2 : Math.random() > 0.5 ? h3node.UNITS.km2 : h3node.UNITS.rads2
+])
 exportBenchmark('pointDist', () => [
   randCoords(),
   randCoords(),
-  Math.random() > 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
+  Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
 ])
 exportBenchmark('getRes0Indexes', () => [])
 

@@ -1367,6 +1367,35 @@ napiFn(hexArea) {
   }
 }
 
+napiFn(cellArea) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetStringArg(1, 6, unit);
+
+  if (unit[0] == 'm' && unit[1] == '2') {
+    double area = cellAreaM2(h3);
+
+    napiNapiValue(area, double, result);
+
+    return result;
+  } else if (unit[0] == 'k' && unit[1] == 'm' && unit[2] == '2') {
+    double area = cellAreaKm2(h3);
+
+    napiNapiValue(area, double, result);
+
+    return result;
+  } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's' & unit[4] == '2') {
+    double area = cellAreaRads2(h3);
+
+    napiNapiValue(area, double, result);
+
+    return result;
+  } else {
+    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    return NULL;
+  }
+}
+
 napiFn(pointDist) {
   napiArgs(3);
   napiGetNapiArg(0, origArr);
@@ -1513,6 +1542,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(numHexagons);
   napiExport(edgeLength);
   napiExport(hexArea);
+  napiExport(cellArea);
   napiExport(pointDist);
   napiExport(getRes0Indexes);
 
