@@ -685,6 +685,18 @@ napiFn(h3ToChildren) {
   return result;
 }
 
+napiFn(h3ToCenterChild) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetArg(1, int32, int, res);
+
+  H3Index h3CenterChild = h3ToCenterChild(h3, res);
+
+  napiNapiH3Index(h3CenterChild, result);
+
+  return result;
+}
+
 napiFn(compact) {
   napiArgs(1);
   napiGetNapiArg(0, h3IndexArrayObj);
@@ -1410,6 +1422,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   // Hierarchy Functions
   napiExport(h3ToParent);
   napiExport(h3ToChildren);
+  napiExport(h3ToCenterChild);
   napiExport(compact);
   napiExport(uncompact);
 

@@ -241,6 +241,10 @@ exportTest('h3ToChildren', () => [
   h3node.geoToH3(...randCoords(), 9),
   Math.floor(15 - Math.random() * 6),
 ], simpleTest)
+exportTest('h3ToCenterChild', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.floor(15 - Math.random() * 6),
+], simpleTest)
 exportTest('compact', () => [h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6)], simpleTest)
 exportTest('uncompact', () => [
   h3node.compact(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6)),
@@ -401,6 +405,10 @@ exportBenchmark('h3ToParent', () => [
   Math.floor(Math.random() * 9),
 ])
 exportBenchmark('h3ToChildren', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.floor(15 - Math.random() * 6),
+])
+exportBenchmark('h3ToCenterChild', () => [
   h3node.geoToH3(...randCoords(), 9),
   Math.floor(15 - Math.random() * 6),
 ])
