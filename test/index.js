@@ -351,6 +351,9 @@ exportBenchmark('h3IsResClassIII', () => [
 exportBenchmark('h3IsPentagon', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
 ])
+exportBenchmark('h3GetFaces', () => [
+  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+])
 exportBenchmark('kRing', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
