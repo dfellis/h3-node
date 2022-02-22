@@ -1367,6 +1367,73 @@ napiFn(hexArea) {
   }
 }
 
+napiFn(pointDist) {
+  napiArgs(3);
+  napiGetNapiArg(0, origArr);
+  napiGetNapiArg(1, destArr);
+  napiGetStringArg(2, 5, unit);
+
+  napiFromArray(origArr, 0, origLatObj) {
+    napi_throw_error(env, "EINVAL", "No origin latitude");
+    return NULL;
+  }
+  napiFromArray(origArr, 1, origLngObj) {
+    napi_throw_error(env, "EINVAL", "No origin longitude");
+    return NULL;
+  }
+  napiFromArray(destArr, 0, destLatObj) {
+    napi_throw_error(env, "EINVAL", "No destination latitude");
+    return NULL;
+  }
+  napiFromArray(destArr, 1, destLngObj) {
+    napi_throw_error(env, "EINVAL", "No destination longitude");
+    return NULL;
+  }
+  napiToVar(origLatObj, double, double, origLat) {
+    napi_throw_error(env, "EINVAL", "Origin latitude is not a number");
+    return NULL;
+  }
+  napiToVar(origLngObj, double, double, origLng) {
+    napi_throw_error(env, "EINVAL", "Origin longitude is not a number");
+    return NULL;
+  }
+  napiToVar(destLatObj, double, double, destLat) {
+    napi_throw_error(env, "EINVAL", "Destination latitude is not a number");
+    return NULL;
+  }
+  napiToVar(destLngObj, double, double, destLng) {
+    napi_throw_error(env, "EINVAL", "Destination longitude is not a number");
+    return NULL;
+  }
+
+  GeoCoord orig = { origLat, origLng };
+  GeoCoord dest = { destLat, destLng };
+
+
+  if (unit[0] == 'm') {
+    double dist = pointDistM(&orig, &dest);
+
+    napiNapiValue(dist, double, result);
+
+    return result;
+  } else if (unit[0] == 'k' && unit[1] == 'm') {
+    double dist = pointDistKm(&orig, &dest);
+
+    napiNapiValue(dist, double, result);
+
+    return result;
+  } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's') {
+    double dist = pointDistRads(&orig, &dest);
+
+    napiNapiValue(dist, double, result);
+
+    return result;
+  } else {
+    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    return NULL;
+  }
+}
+
 napiFn(getRes0Indexes) {
   int numHexes = res0IndexCount();
   H3Index* res0Indexes = calloc(numHexes, sizeof(H3Index));
@@ -1446,6 +1513,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(numHexagons);
   napiExport(edgeLength);
   napiExport(hexArea);
+  napiExport(pointDist);
   napiExport(getRes0Indexes);
 
   return exports;
