@@ -331,6 +331,13 @@ exportTest('edgeLength', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m : h3node.UNITS.km,
 ], almostEqualTest)
+exportTest('exactEdgeLength', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [
+    h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop()),
+    Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
+  ]
+}, almostEqualTest)
 exportTest('hexArea', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
@@ -506,6 +513,13 @@ exportBenchmark('edgeLength', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m : h3node.UNITS.km,
 ])
+exportBenchmark('exactEdgeLength', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [
+    h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop()),
+    Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
+  ]
+})
 exportBenchmark('hexArea', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,

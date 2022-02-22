@@ -1344,6 +1344,35 @@ napiFn(edgeLength) {
   }
 }
 
+napiFn(exactEdgeLength) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetStringArg(1, 5, unit);
+
+  if (unit[0] == 'm') {
+    double len = exactEdgeLengthM(h3);
+
+    napiNapiValue(len, double, result);
+
+    return result;
+  } else if (unit[0] == 'k' && unit[1] == 'm') {
+    double len = exactEdgeLengthKm(h3);
+
+    napiNapiValue(len, double, result);
+
+    return result;
+  } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's') {
+    double len = exactEdgeLengthRads(h3);
+
+    napiNapiValue(len, double, result);
+
+    return result;
+  } else {
+    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    return NULL;
+  }
+}
+
 napiFn(hexArea) {
   napiArgs(2);
   napiGetArg(0, int32, int, res);
@@ -1384,7 +1413,7 @@ napiFn(cellArea) {
     napiNapiValue(area, double, result);
 
     return result;
-  } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's' & unit[4] == '2') {
+  } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's' && unit[4] == '2') {
     double area = cellAreaRads2(h3);
 
     napiNapiValue(area, double, result);
@@ -1541,6 +1570,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(radsToDegs);
   napiExport(numHexagons);
   napiExport(edgeLength);
+  napiExport(exactEdgeLength);
   napiExport(hexArea);
   napiExport(cellArea);
   napiExport(pointDist);
