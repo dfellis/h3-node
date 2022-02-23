@@ -372,6 +372,25 @@ napiFn(h3IsPentagon) {
   return result;
 }
 
+napiFn(h3GetFaces) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, h3);
+
+  int max = maxFaceCount(h3);
+  int* out = calloc(max, sizeof(int));
+  h3GetFaces(h3, out);
+
+  napiFixedArray(result, max);
+  for (int i = 0; i < max; i++) {
+    if (out[i] >= 0) {
+      napiSetValue(result, i, int32, out[i], temp);
+    }
+  }
+  free(out);
+
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Traversal Functions                                                       //
 ///////////////////////////////////////////////////////////////////////////////
@@ -663,6 +682,18 @@ napiFn(h3ToChildren) {
   }
   
   free(children);
+  return result;
+}
+
+napiFn(h3ToCenterChild) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetArg(1, int32, int, res);
+
+  H3Index h3CenterChild = h3ToCenterChild(h3, res);
+
+  napiNapiH3Index(h3CenterChild, result);
+
   return result;
 }
 
@@ -1313,6 +1344,35 @@ napiFn(edgeLength) {
   }
 }
 
+napiFn(exactEdgeLength) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetStringArg(1, 5, unit);
+
+  if (unit[0] == 'm') {
+    double len = exactEdgeLengthM(h3);
+
+    napiNapiValue(len, double, result);
+
+    return result;
+  } else if (unit[0] == 'k' && unit[1] == 'm') {
+    double len = exactEdgeLengthKm(h3);
+
+    napiNapiValue(len, double, result);
+
+    return result;
+  } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's') {
+    double len = exactEdgeLengthRads(h3);
+
+    napiNapiValue(len, double, result);
+
+    return result;
+  } else {
+    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    return NULL;
+  }
+}
+
 napiFn(hexArea) {
   napiArgs(2);
   napiGetArg(0, int32, int, res);
@@ -1328,6 +1388,102 @@ napiFn(hexArea) {
     double area = hexAreaKm2(res);
 
     napiNapiValue(area, double, result);
+
+    return result;
+  } else {
+    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    return NULL;
+  }
+}
+
+napiFn(cellArea) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetStringArg(1, 6, unit);
+
+  if (unit[0] == 'm' && unit[1] == '2') {
+    double area = cellAreaM2(h3);
+
+    napiNapiValue(area, double, result);
+
+    return result;
+  } else if (unit[0] == 'k' && unit[1] == 'm' && unit[2] == '2') {
+    double area = cellAreaKm2(h3);
+
+    napiNapiValue(area, double, result);
+
+    return result;
+  } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's' && unit[4] == '2') {
+    double area = cellAreaRads2(h3);
+
+    napiNapiValue(area, double, result);
+
+    return result;
+  } else {
+    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    return NULL;
+  }
+}
+
+napiFn(pointDist) {
+  napiArgs(3);
+  napiGetNapiArg(0, origArr);
+  napiGetNapiArg(1, destArr);
+  napiGetStringArg(2, 5, unit);
+
+  napiFromArray(origArr, 0, origLatObj) {
+    napi_throw_error(env, "EINVAL", "No origin latitude");
+    return NULL;
+  }
+  napiFromArray(origArr, 1, origLngObj) {
+    napi_throw_error(env, "EINVAL", "No origin longitude");
+    return NULL;
+  }
+  napiFromArray(destArr, 0, destLatObj) {
+    napi_throw_error(env, "EINVAL", "No destination latitude");
+    return NULL;
+  }
+  napiFromArray(destArr, 1, destLngObj) {
+    napi_throw_error(env, "EINVAL", "No destination longitude");
+    return NULL;
+  }
+  napiToVar(origLatObj, double, double, origLat) {
+    napi_throw_error(env, "EINVAL", "Origin latitude is not a number");
+    return NULL;
+  }
+  napiToVar(origLngObj, double, double, origLng) {
+    napi_throw_error(env, "EINVAL", "Origin longitude is not a number");
+    return NULL;
+  }
+  napiToVar(destLatObj, double, double, destLat) {
+    napi_throw_error(env, "EINVAL", "Destination latitude is not a number");
+    return NULL;
+  }
+  napiToVar(destLngObj, double, double, destLng) {
+    napi_throw_error(env, "EINVAL", "Destination longitude is not a number");
+    return NULL;
+  }
+
+  GeoCoord orig = { origLat, origLng };
+  GeoCoord dest = { destLat, destLng };
+
+
+  if (unit[0] == 'm') {
+    double dist = pointDistM(&orig, &dest);
+
+    napiNapiValue(dist, double, result);
+
+    return result;
+  } else if (unit[0] == 'k' && unit[1] == 'm') {
+    double dist = pointDistKm(&orig, &dest);
+
+    napiNapiValue(dist, double, result);
+
+    return result;
+  } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's') {
+    double dist = pointDistRads(&orig, &dest);
+
+    napiNapiValue(dist, double, result);
 
     return result;
   } else {
@@ -1361,6 +1517,33 @@ napiFn(getRes0Indexes) {
   return result;
 }
 
+napiFn(getPentagonIndexes) {
+  napiArgs(1);
+  napiGetArg(0, int32, int, res);
+
+  H3Index* pentagonIndexes = calloc(12, sizeof(H3Index));
+  getPentagonIndexes(res, pentagonIndexes);
+
+  napiVarArray(result) {
+    free(pentagonIndexes);
+    return NULL;
+  }
+  for (int i = 0; i < 12; i++) {
+    H3Index h3Num = pentagonIndexes[i];
+    napiNapiH3Index(h3Num, h3Val) {
+      free(pentagonIndexes);
+      return NULL;
+    }
+    napiSetNapiValue(result, i, h3Val) {
+      free(pentagonIndexes);
+      return NULL;
+    }
+  }
+
+  free(pentagonIndexes);
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization Function                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -1377,6 +1560,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(h3IsValid);
   napiExport(h3IsResClassIII);
   napiExport(h3IsPentagon);
+  napiExport(h3GetFaces);
 
   // Traversal Functions
   napiExport(kRing);
@@ -1390,6 +1574,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   // Hierarchy Functions
   napiExport(h3ToParent);
   napiExport(h3ToChildren);
+  napiExport(h3ToCenterChild);
   napiExport(compact);
   napiExport(uncompact);
 
@@ -1412,8 +1597,12 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(radsToDegs);
   napiExport(numHexagons);
   napiExport(edgeLength);
+  napiExport(exactEdgeLength);
   napiExport(hexArea);
+  napiExport(cellArea);
+  napiExport(pointDist);
   napiExport(getRes0Indexes);
+  napiExport(getPentagonIndexes);
 
   return exports;
 }

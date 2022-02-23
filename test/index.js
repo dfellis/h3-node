@@ -187,6 +187,9 @@ exportTest('h3IsResClassIII', () => [
 exportTest('h3IsPentagon', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
 ], simpleTest)
+exportTest('h3GetFaces', () => [
+  h3node.geoToH3(...randCoords(), 2)
+], simpleTest)
 exportTest('kRing', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
@@ -235,6 +238,10 @@ exportTest('h3ToParent', () => [
   Math.floor(Math.random() * 9),
 ], simpleTest)
 exportTest('h3ToChildren', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.floor(15 - Math.random() * 6),
+], simpleTest)
+exportTest('h3ToCenterChild', () => [
   h3node.geoToH3(...randCoords(), 9),
   Math.floor(15 - Math.random() * 6),
 ], simpleTest)
@@ -324,11 +331,28 @@ exportTest('edgeLength', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m : h3node.UNITS.km,
 ], almostEqualTest)
+exportTest('exactEdgeLength', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [
+    h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop()),
+    Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
+  ]
+}, almostEqualTest)
 exportTest('hexArea', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
 ], almostEqualTest)
+exportTest('cellArea', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.random() < 0.34 ? h3node.UNITS.m2 : Math.random() > 0.5 ? h3node.UNITS.km2 : h3node.UNITS.rads2
+], almostEqualTest)
+exportTest('pointDist', () => [
+  randCoords(),
+  randCoords(),
+  Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
+], almostEqualTest)
 exportTest('getRes0Indexes', () => [], simpleTest)
+exportTest('getPentagonIndexes', () => [Math.floor(Math.random() * 16)], simpleArrTest)
 
 exportBenchmark('geoToH3', () => [...randCoords(), 9])
 exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
@@ -346,6 +370,9 @@ exportBenchmark('h3IsResClassIII', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
 ])
 exportBenchmark('h3IsPentagon', () => [
+  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+])
+exportBenchmark('h3GetFaces', () => [
   h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
 ])
 exportBenchmark('kRing', () => [
@@ -395,6 +422,10 @@ exportBenchmark('h3ToParent', () => [
   Math.floor(Math.random() * 9),
 ])
 exportBenchmark('h3ToChildren', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.floor(15 - Math.random() * 6),
+])
+exportBenchmark('h3ToCenterChild', () => [
   h3node.geoToH3(...randCoords(), 9),
   Math.floor(15 - Math.random() * 6),
 ])
@@ -483,11 +514,28 @@ exportBenchmark('edgeLength', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m : h3node.UNITS.km,
 ])
+exportBenchmark('exactEdgeLength', () => {
+  const randIndex = h3node.geoToH3(...randCoords(), 9)
+  return [
+    h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop()),
+    Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
+  ]
+})
 exportBenchmark('hexArea', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
 ])
+exportBenchmark('cellArea', () => [
+  h3node.geoToH3(...randCoords(), 9),
+  Math.random() < 0.34 ? h3node.UNITS.m2 : Math.random() > 0.5 ? h3node.UNITS.km2 : h3node.UNITS.rads2
+])
+exportBenchmark('pointDist', () => [
+  randCoords(),
+  randCoords(),
+  Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
+])
 exportBenchmark('getRes0Indexes', () => [])
+exportBenchmark('getPentagonIndexes', () => [Math.floor(Math.random() * 16)])
 
 /* console.log(h3node.polyfill(
   [
