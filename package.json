@@ -28,7 +28,7 @@
   "dependencies": {
     "node-gyp": "^8.4.0",
     "node-gyp-build": "^4.2.1",
-    "prebuildify": "^3.0.4"
+    "prebuildify": "^5.0.0"
   },
   "devDependencies": {
     "h3-js": "^3.7.2",
