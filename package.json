@@ -1,6 +1,6 @@
 {
   "name": "h3-node",
-  "version": "3.7.1",
+  "version": "3.7.2",
   "description": "H3 Bindings to node using N-API",
   "main": "index.js",
   "scripts": {
