@@ -294,7 +294,7 @@ exportTest('cellsToMultiPolygon', () => [
     ...h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 3),
   ])]
 ], almostEqualTest, 'TrueMultiPolygon')
-exportTest('h3IndexesAreNeighbors', () =>
+exportTest('areNeighborCells', () =>
   randElements(h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 2), 2),
   simpleTest)
 exportTest('cellsToDirectedEdge', () => {
@@ -377,7 +377,7 @@ exportBenchmark('isPentagon', () => [
   h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ])
 exportBenchmark('getIcosahedronFaces', () => [
-  h3node.latLngToCel(...randCoords(), Math.floor(Math.random() * 16))
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ])
 exportBenchmark('gridDisk', () => [
   h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
@@ -479,7 +479,7 @@ exportBenchmark('cellsToMultiPolygon', () => [
     ...h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 3),
   ])]
 ], false, 'TrueMultiPolygon')
-exportBenchmark('h3IndexesAreNeighbors', () =>
+exportBenchmark('areNeighborCells', () =>
   randElements(h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 2), 2))
 exportBenchmark('cellsToDirectedEdge', () => {
   const randIndex = h3node.latLngToCell(...randCoords(), 9)

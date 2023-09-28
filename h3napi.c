@@ -560,7 +560,7 @@ napiFn(gridDistance) {
   napiGetH3IndexArg(0, origin);
   napiGetH3IndexArg(1, destination);
 
-  int64_t distance;
+  int32_t distance;
   H3Error err = gridDistance(origin, destination, &distance);
   napiThrowErr(gridDistance, err);
 
