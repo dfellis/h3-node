@@ -161,7 +161,7 @@
 #define napiThrowErr(N, E) \
   if (E) { \
     char N ## code[5]; \
-    sprintf(N ## code, "%d", E); \
+    snprintf(N ## code, 5, "%d", E); \
     napi_throw_error(env, N ## code, ""); \
     return NULL;\
   }
