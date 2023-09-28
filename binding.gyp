@@ -1,7 +1,8 @@
 {
   "targets": [{
     "cflags": [
-      "-std=c99"
+      "-std=c99",
+      "-Wno-empty-body"
     ],
     "target_name": "h3node",
     "include_dirs": [

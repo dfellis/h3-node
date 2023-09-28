@@ -1,5 +1,6 @@
 #include <node_api.h>
 #include <stdio.h>
+#include "h3/src/h3lib/include/h3api.h"
 #include "h3api.h"
 
 #define napiFn(N) napi_value N ## Napi(napi_env env, napi_callback_info info)
@@ -83,7 +84,8 @@
   uint32_t O ## ArrSz;\
   \
   if (napi_get_value_string_utf8(env, argv[I], O ## Str, 17, &O ## StrCount) == napi_ok) {\
-    O = stringToH3(O ## Str);\
+    H3Error O ## err = stringToH3(O ## Str, &O);\
+    napiThrowErr(O ## Err, O ## err);\
   } else if (napi_get_typedarray_info(env, O ## Arr, &O ## Type, &O ## Length, &O ## Data, NULL, NULL) == napi_ok) {\
     if (O ## Type != napi_uint32_array || O ## Length != 2) {\
       napi_throw_error(env, "EINVAL", "Invalid Uint32Array H3 index in arg " #I);\
@@ -112,13 +114,15 @@
   }
 
 #define napiGetH3Index(I, O) \
+  H3Index O;\
   char O ## Str[17];\
   size_t O ## StrCount;\
   napi_status napiGetH3Index ## I = napi_get_value_string_utf8(env, I, O ## Str, 17, &O ## StrCount);\
   if (napiGetH3Index ## I != napi_ok) {\
     napi_throw_error(env, "EINVAL", "Expected string h3 index in arg " #I);\
   }\
-  H3Index O = stringToH3(O ## Str);\
+  H3Error O ## err = stringToH3(O ## Str, &O);\
+  napiThrowErr(O ## Err, O ## err);\
   if (napiGetH3Index ## I != napi_ok)
 
 #define napiFixedArray(V, L) \
@@ -153,6 +157,14 @@
     return NULL;\
   }\
   napiSetNapiValue(A, I, N)
+
+#define napiThrowErr(N, E) \
+  if (E) { \
+    char N ## code[3]; \
+    sprintf(N ## code, "%d", E); \
+    napi_throw_error(env, N ## code, ""); \
+    return NULL;\
+  }
 
 #define napiNapiH3Index(V, O) \
   char V ## String[17];\
@@ -233,8 +245,10 @@ napiFn(latLngToCell) {
   napiGetArg(1, double, double, lng);
   napiGetArg(2, int32, int, res);
 
-  GeoCoord geo = { degsToRads(lat), degsToRads(lng) };
-  H3Index h3 = latLngToCell(&geo, res);
+  LatLng geo = { degsToRads(lat), degsToRads(lng) };
+  H3Index h3;
+  H3Error err = latLngToCell(&geo, res, &h3);
+  napiThrowErr(latLngToCell, err);
 
   napiNapiH3Index(h3, result);
 
@@ -245,12 +259,12 @@ napiFn(cellToLatLng) {
   napiArgs(1);
   napiGetH3IndexArg(0, h3);
 
-  GeoCoord geo = { 0 };
+  LatLng geo = { 0 };
   cellToLatLng(h3, &geo);
 
   napiFixedArray(result, 2);
   napiSetValue(result, 0, double, radsToDegs(geo.lat), lat);
-  napiSetValue(result, 1, double, radsToDegs(geo.lon), lng);
+  napiSetValue(result, 1, double, radsToDegs(geo.lng), lng);
 
   return result;
 }
@@ -259,14 +273,14 @@ napiFn(cellToBoundary) {
   napiArgs(1);
   napiGetH3IndexArg(0, h3);
 
-  GeoBoundary geoBoundary = { 0 };
+  CellBoundary geoBoundary = { 0 };
   cellToBoundary(h3, &geoBoundary);
 
   napiFixedArray(result, geoBoundary.numVerts);
   for (int i = 0; i < geoBoundary.numVerts; i++) {
     napiFixedArray(latlngArray, 2);
     napiSetValue(latlngArray, 0, double, radsToDegs(geoBoundary.verts[i].lat), lat);
-    napiSetValue(latlngArray, 1, double, radsToDegs(geoBoundary.verts[i].lon), lng);
+    napiSetValue(latlngArray, 1, double, radsToDegs(geoBoundary.verts[i].lng), lng);
     napiSetNapiValue(result, i, latlngArray);
   }
 
@@ -315,7 +329,8 @@ napiFn(isValidCell) {
   uint32_t h3ArrSz;
 
   if (napi_get_value_string_utf8(env, argv[0], h3Str, 17, &h3StrCount) == napi_ok) {
-    h3 = stringToH3(h3Str);
+    H3Error err = stringToH3(h3Str, &h3);\
+    napiThrowErr(isValidCell, err);\
   } else if (napi_get_typedarray_info(env, h3Arr, &h3Type, &h3Length, &h3Data, NULL, NULL) == napi_ok) {
     if (h3Type != napi_uint32_array || h3Length != 2) {
       napiNapiBool(false, result);
@@ -376,7 +391,10 @@ napiFn(getIcosahedronFaces) {
   napiArgs(1);
   napiGetH3IndexArg(0, h3);
 
-  int max = maxFaceCount(h3);
+  int max;
+  H3Error err = maxFaceCount(h3, &max);
+  napiThrowErr(maxFaceCount, err);
+
   int* out = calloc(max, sizeof(int));
   getIcosahedronFaces(h3, out);
 
@@ -400,7 +418,10 @@ napiFn(gridDisk) {
   napiGetH3IndexArg(0, h3);
   napiGetArg(1, int32, int, k);
 
-  int maxSize = maxKringSize(k);
+  int64_t maxSize;
+  H3Error err = maxGridDiskSize(k, &maxSize);
+  napiThrowErr(gridDisk, err);
+
   H3Index* gridDiskOut = calloc(maxSize, sizeof(H3Index));
   gridDisk(h3, k, gridDiskOut);
 
@@ -435,7 +456,10 @@ napiFn(gridDiskDistances) {
   napiGetH3IndexArg(0, h3);
   napiGetArg(1, int32, int, k);
 
-  int maxSize = maxKringSize(k);
+  int64_t maxSize;
+  H3Error err = maxGridDiskSize(k, &maxSize);
+  napiThrowErr(gridDisk, err);
+
   H3Index* gridDiskOut = calloc(maxSize, sizeof(H3Index));
   int* distances = calloc(maxSize, sizeof(int));
   gridDiskDistances(h3, k, gridDiskOut, distances);
@@ -536,7 +560,9 @@ napiFn(gridDistance) {
   napiGetH3IndexArg(0, origin);
   napiGetH3IndexArg(1, destination);
 
-  int distance = gridDistance(origin, destination);
+  int64_t distance;
+  H3Error err = gridDistance(origin, destination, &distance);
+  napiThrowErr(gridDistance, err);
 
   napiNapiValue(distance, int32, result);
 
@@ -549,7 +575,7 @@ napiFn(cellToLocalIj) {
   napiGetH3IndexArg(1, destination);
 
   CoordIJ ij = { 0 };
-  int errorCode = cellToLocalIj(origin, destination, &ij);
+  int errorCode = cellToLocalIj(origin, destination, 0, &ij);
   switch (errorCode) {
     case 0:
       break;
@@ -582,7 +608,7 @@ napiFn(localIjToCell) {
   H3Index h3;
   napiGetFromObject(coords, i, int32, &ij.i);
   napiGetFromObject(coords, j, int32, &ij.j);
-  int errorCode = localIjToCell(origin, &ij, &h3);
+  int errorCode = localIjToCell(origin, &ij, 0, &h3);
   if (errorCode != 0) {
     napi_throw_error(env, "EINVAL", "Index not defined for this origin and IJ coordinate pair. "
       "IJ coordinates may be too far from origin, or a pentagon distortion was encountered.");
@@ -598,7 +624,10 @@ napiFn(gridPathCells) {
   napiGetH3IndexArg(0, origin);
   napiGetH3IndexArg(1, destination);
 
-  int numHexes = gridPathCellsSize(origin, destination);
+  int64_t numHexes;
+  H3Error err = gridPathCellsSize(origin, destination, &numHexes);
+  napiThrowErr(gridPathCells, err);
+
   if (numHexes <= 0) {
     napi_throw_error(env, "EINVAL", "Line cannot be calculated");
     return NULL;
@@ -646,7 +675,9 @@ napiFn(cellToParent) {
   napiGetH3IndexArg(0, h3);
   napiGetArg(1, int32, int, res);
 
-  H3Index h3Parent = cellToParent(h3, res);
+  H3Index h3Parent;
+  H3Error err = cellToParent(h3, res, &h3Parent);
+  napiThrowErr(cellToParent, err);
 
   napiNapiH3Index(h3Parent, result);
 
@@ -658,7 +689,10 @@ napiFn(cellToChildren) {
   napiGetH3IndexArg(0, h3);
   napiGetArg(1, int32, int, res);
 
-  int maxSize = cellToChildrenSize(h3, res);
+  int64_t maxSize;
+  H3Error err = cellToChildrenSize(h3, res, &maxSize);
+  napiThrowErr(cellToChildren, err);
+
   H3Index* children = calloc(maxSize, sizeof(H3Index));
   cellToChildren(h3, res, children);
 
@@ -690,7 +724,9 @@ napiFn(cellToCenterChild) {
   napiGetH3IndexArg(0, h3);
   napiGetArg(1, int32, int, res);
 
-  H3Index h3CenterChild = cellToCenterChild(h3, res);
+  H3Index h3CenterChild;
+  H3Error err = cellToCenterChild(h3, res, &h3CenterChild);
+  napiThrowErr(cellToCenterChild, err);
 
   napiNapiH3Index(h3CenterChild, result);
 
@@ -707,7 +743,7 @@ napiFn(compactCells) {
   }
   H3Index* uncompactedArray = calloc(arrayLen, sizeof(H3Index));
   H3Index* compactedArray = calloc(arrayLen, sizeof(H3Index));
-  for (int i = 0; i < arrayLen; i++) {
+  for (uint32_t i = 0; i < arrayLen; i++) {
     napiFromArray(h3IndexArrayObj, i, h3IndexObj) {
       free(uncompactedArray);
       free(compactedArray);
@@ -733,7 +769,7 @@ napiFn(compactCells) {
     return NULL;
   }
   int arrayIndex = 0;
-  for (int i = 0; i < arrayLen; i++) {
+  for (uint32_t i = 0; i < arrayLen; i++) {
     H3Index compacted = compactedArray[i];
     if (compacted == 0) continue;
     napiNapiH3Index(compacted, compactedObj) {
@@ -764,7 +800,7 @@ napiFn(uncompactCells) {
     return NULL;
   }
   H3Index* compactedArray = calloc(arrayLen, sizeof(H3Index));
-  for (int i = 0; i < arrayLen; i++) {
+  for (uint32_t i = 0; i < arrayLen; i++) {
     napiFromArray(h3IndexArrayObj, i, h3IndexObj) {
       free(compactedArray);
       return NULL;
@@ -775,7 +811,10 @@ napiFn(uncompactCells) {
     }
     compactedArray[i] = h3Index;
   }
-  int maxSize = maxUncompactSize(compactedArray, arrayLen, res);
+  int64_t maxSize;
+  H3Error err = uncompactCellsSize(compactedArray, arrayLen, res, &maxSize);
+  napiThrowErr(uncompactCells, err);
+
   H3Index* uncompactedArray = calloc(maxSize, sizeof(H3Index));
   int errorCode = uncompactCells(compactedArray, arrayLen, uncompactedArray, maxSize, res);
   if (errorCode != 0) {
@@ -815,17 +854,17 @@ napiFn(uncompactCells) {
 // Region Functions                                                          //
 ///////////////////////////////////////////////////////////////////////////////
 
-bool polygonArrayToGeofence(napi_env env, Geofence* geofence, napi_value polygonArray, bool isGeoJson) {
+bool polygonArrayToGeofence(napi_env env, GeoLoop* geofence, napi_value polygonArray, bool isGeoJson) {
   uint32_t arrayLength;
   if (napi_get_array_length(env, polygonArray, &arrayLength) != napi_ok) {
     napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
     // Sorta-useless calloc to make sure error-handling 'free' below always works
-    geofence->verts = calloc(1, sizeof(GeoCoord));
+    geofence->verts = calloc(1, sizeof(LatLng));
     return false;
   }
   geofence->numVerts = arrayLength;
-  geofence->verts = calloc(arrayLength, sizeof(GeoCoord));
-  for (int i = 0; i < arrayLength; i++) {
+  geofence->verts = calloc(arrayLength, sizeof(LatLng));
+  for (uint32_t i = 0; i < arrayLength; i++) {
     napiFromArray(polygonArray, i, latlngArray) {
       return false;
     }
@@ -843,7 +882,7 @@ bool polygonArrayToGeofence(napi_env env, Geofence* geofence, napi_value polygon
         return false;
       }
       geofence->verts[i].lat = degsToRads(lat);
-      geofence->verts[i].lon = degsToRads(lng);
+      geofence->verts[i].lng = degsToRads(lng);
     } else {
       napiToVar(a, double, double, lat) {
         return false;
@@ -852,7 +891,7 @@ bool polygonArrayToGeofence(napi_env env, Geofence* geofence, napi_value polygon
         return false;
       }
       geofence->verts[i].lat = degsToRads(lat);
-      geofence->verts[i].lon = degsToRads(lng);
+      geofence->verts[i].lng = degsToRads(lng);
     }
   }
   return true;
@@ -903,8 +942,8 @@ napiFn(polygonToCells) {
   if (typepoke == napi_number) {
     // Single polygon shape, no holes
     polygon.numHoles = 0;
-    if (!polygonArrayToGeofence(env, &polygon.geofence, geofenceArrayObj, isGeoJson)) {
-      free(polygon.geofence.verts);
+    if (!polygonArrayToGeofence(env, &polygon.geoloop, geofenceArrayObj, isGeoJson)) {
+      free(polygon.geoloop.verts);
       return NULL;
     }
   } else {
@@ -915,12 +954,12 @@ napiFn(polygonToCells) {
     }
     polygon.numHoles = arrayLength - 1;
     if (polygon.numHoles > 0) {
-      polygon.holes = calloc(polygon.numHoles, sizeof(Geofence));
+      polygon.holes = calloc(polygon.numHoles, sizeof(GeoLoop));
     }
-    for (int i = 0; i < arrayLength; i++) {
+    for (uint32_t i = 0; i < arrayLength; i++) {
       napiFromArray(geofenceArrayObj, i, polygonArray) {
-        if (polygon.geofence.numVerts > 0) {
-          free(polygon.geofence.verts);
+        if (polygon.geoloop.numVerts > 0) {
+          free(polygon.geoloop.verts);
         }
         if (polygon.numHoles > 0) {
           for (int x = 0; x < polygon.numHoles; x++) {
@@ -934,9 +973,9 @@ napiFn(polygonToCells) {
       }
       if (i == 0) {
         // Main geofence case
-        if (!polygonArrayToGeofence(env, &polygon.geofence, polygonArray, isGeoJson)) {
-          if (polygon.geofence.numVerts > 0) {
-            free(polygon.geofence.verts);
+        if (!polygonArrayToGeofence(env, &polygon.geoloop, polygonArray, isGeoJson)) {
+          if (polygon.geoloop.numVerts > 0) {
+            free(polygon.geoloop.verts);
           }
           if (polygon.numHoles > 0) {
             for (int x = 0; x < polygon.numHoles; x++) {
@@ -951,8 +990,8 @@ napiFn(polygonToCells) {
       } else {
         // Hole case
         if (!polygonArrayToGeofence(env, &polygon.holes[i - 1], polygonArray, isGeoJson)) {
-          if (polygon.geofence.numVerts > 0) {
-            free(polygon.geofence.verts);
+          if (polygon.geoloop.numVerts > 0) {
+            free(polygon.geoloop.verts);
           }
           if (polygon.numHoles > 0) {
             for (int x = 0; x < polygon.numHoles; x++) {
@@ -967,17 +1006,22 @@ napiFn(polygonToCells) {
       }
     }
   }
-  int maxSize = maxPolyfillSize(&polygon, res);
+
+  int64_t maxSize;
+  H3Error err = maxPolygonToCellsSize(&polygon, res, 0, &maxSize);
+  napiThrowErr(maxPolygonToCellsSize, err);
+
   H3Index* fill = calloc(maxSize, sizeof(H3Index));
-  polygonToCells(&polygon, res, fill);
+  err = polygonToCells(&polygon, res, 0, fill);
+  napiThrowErr(polygonToCells, err);
 
   int arrayIndex = 0;
   for (int i = 0; i < maxSize; i++) {
     H3Index h3 = fill[i];
     if (h3 == 0) continue;
     napiNapiH3Index(h3, h3Obj) {
-      if (polygon.geofence.numVerts > 0) {
-        free(polygon.geofence.verts);
+      if (polygon.geoloop.numVerts > 0) {
+        free(polygon.geoloop.verts);
       }
       if (polygon.numHoles > 0) {
         for (int x = 0; x < polygon.numHoles; x++) {
@@ -990,8 +1034,8 @@ napiFn(polygonToCells) {
       return NULL;
     }
     napiSetNapiValue(result, arrayIndex, h3Obj) {
-      if (polygon.geofence.numVerts > 0) {
-        free(polygon.geofence.verts);
+      if (polygon.geoloop.numVerts > 0) {
+        free(polygon.geoloop.verts);
       }
       if (polygon.numHoles > 0) {
         for (int x = 0; x < polygon.numHoles; x++) {
@@ -1006,8 +1050,8 @@ napiFn(polygonToCells) {
     arrayIndex++;
   }
 
-  if (polygon.geofence.numVerts > 0) {
-    free(polygon.geofence.verts);
+  if (polygon.geoloop.numVerts > 0) {
+    free(polygon.geoloop.verts);
   }
   if (polygon.numHoles > 0) {
     for (int x = 0; x < polygon.numHoles; x++) {
@@ -1036,7 +1080,7 @@ napiFn(cellsToMultiPolygon) {
 
   napiArrayLen(h3SetArrayObj, h3SetLen);
   H3Index* h3Set = calloc(h3SetLen, sizeof(H3Index));
-  for (int i = 0; i < h3SetLen; i++) {
+  for (uint32_t i = 0; i < h3SetLen; i++) {
     napiFromArray(h3SetArrayObj, i, h3Obj) {
       free(h3Set);
       return NULL;
@@ -1054,7 +1098,7 @@ napiFn(cellsToMultiPolygon) {
  
   // Create the output outer array
   napiVarArray(out) {
-    destroyLinkedPolygon(original);
+    destroyLinkedMultiPolygon(original);
     free(original);
     free(h3Set);
   }
@@ -1063,13 +1107,13 @@ napiFn(cellsToMultiPolygon) {
   while (lgp) {
     // Create an inner array for that polygon and insert it into the output array
     napiVarArray(loops) {
-      destroyLinkedPolygon(original);
+      destroyLinkedMultiPolygon(original);
       free(original);
       free(h3Set);
     }
     int loopsLen = 0;
     napiSetNapiValue(out, outLen, loops) {
-      destroyLinkedPolygon(original);
+      destroyLinkedMultiPolygon(original);
       free(original);
       free(h3Set);
     }
@@ -1079,54 +1123,54 @@ napiFn(cellsToMultiPolygon) {
     while (loop) {
       // Create an inner coordinates array for that loop and insert into the polygon array
       napiVarArray(coords) {
-        destroyLinkedPolygon(original);
+        destroyLinkedMultiPolygon(original);
         free(original);
         free(h3Set);
       }
       int coordsLen = 0;
       napiSetNapiValue(loops, loopsLen, coords) {
-        destroyLinkedPolygon(original);
+        destroyLinkedMultiPolygon(original);
         free(original);
         free(h3Set);
       }
       loopsLen++;
-      LinkedGeoCoord* coord = loop->first;
+      LinkedLatLng* coord = loop->first;
       // For each coordinate in that loop
       while (coord) {
         // Create a fixed coordinates array and insert into the coordinates loop array
         napiFixedArray(coordObj, 2) {
-          destroyLinkedPolygon(original);
+          destroyLinkedMultiPolygon(original);
           free(original);
           free(h3Set);
         }
         napiSetNapiValue(coords, coordsLen, coordObj) {
-          destroyLinkedPolygon(original);
+          destroyLinkedMultiPolygon(original);
           free(original);
           free(h3Set);
         }
         coordsLen++;
         // Then actually get the coordinates and insert them in the specified order
         double lat = coord->vertex.lat;
-        double lng = coord->vertex.lon;
+        double lng = coord->vertex.lng;
         if (formatAsGeoJson) {
           napiSetValue(coordObj, 0, double, lng, lngObj)  {
-            destroyLinkedPolygon(original);
+            destroyLinkedMultiPolygon(original);
             free(original);
             free(h3Set);
           }
           napiSetValue(coordObj, 1, double, lat, latObj) {
-            destroyLinkedPolygon(original);
+            destroyLinkedMultiPolygon(original);
             free(original);
             free(h3Set);
           }
         } else {
           napiSetValue(coordObj, 0, double, lat, latObj) {
-            destroyLinkedPolygon(original);
+            destroyLinkedMultiPolygon(original);
             free(original);
             free(h3Set);
           }
           napiSetValue(coordObj, 1, double, lng, lngObj) {
-            destroyLinkedPolygon(original);
+            destroyLinkedMultiPolygon(original);
             free(original);
             free(h3Set);
           }
@@ -1137,12 +1181,12 @@ napiFn(cellsToMultiPolygon) {
       // GeoJSON arrays must be closed
       if (formatAsGeoJson) {
         napiFromArray(coords, 0, firstCoord) {
-          destroyLinkedPolygon(original);
+          destroyLinkedMultiPolygon(original);
           free(original);
           free(h3Set);
         }
         napiSetNapiValue(coords, coordsLen, firstCoord) {
-          destroyLinkedPolygon(original);
+          destroyLinkedMultiPolygon(original);
           free(original);
           free(h3Set);
         }
@@ -1154,7 +1198,7 @@ napiFn(cellsToMultiPolygon) {
     lgp = lgp->next;
   }
 
-  destroyLinkedPolygon(original);
+  destroyLinkedMultiPolygon(original);
   free(original);
   free(h3Set);
 
@@ -1170,7 +1214,9 @@ napiFn(areNeighborCells) {
   napiGetH3IndexArg(0, origin);
   napiGetH3IndexArg(1, destination);
 
-  int areNeighbors = areNeighborCells(origin, destination);
+  int areNeighbors;
+  H3Error err = areNeighborCells(origin, destination, &areNeighbors);
+  napiThrowErr(areNeighborCells, err);
 
   napiNapiBool(areNeighbors, result);
 
@@ -1182,9 +1228,11 @@ napiFn(cellsToDirectedEdge) {
   napiGetH3IndexArg(0, origin);
   napiGetH3IndexArg(1, destination);
 
-  H3Index unidirectionalEdge = cellsToDirectedEdge(origin, destination);
+  H3Index directedEdge;
+  H3Error err = cellsToDirectedEdge(origin, destination, &directedEdge);
+  napiThrowErr(cellsToDirectedEdge, err);
 
-  napiNapiUnidirectionalEdge(unidirectionalEdge, result);
+  napiNapiUnidirectionalEdge(directedEdge, result);
 
   return result;
 }
@@ -1204,7 +1252,9 @@ napiFn(getDirectedEdgeOrigin) {
   napiArgs(1);
   napiGetH3IndexArg(0, unidirectionalEdge);
 
-  H3Index origin = getDirectedEdgeOrigin(unidirectionalEdge);
+  H3Index origin;
+  H3Error err = getDirectedEdgeOrigin(unidirectionalEdge, &origin);
+  napiThrowErr(getDirectedEdgeOrigin, err);
 
   napiNapiH3Index(origin, result);
 
@@ -1215,8 +1265,10 @@ napiFn(getDirectedEdgeDestination) {
   napiArgs(1);
   napiGetH3IndexArg(0, unidirectionalEdge);
 
-  H3Index destination = getDirectedEdgeDestination(unidirectionalEdge);
-
+  H3Index destination;
+  H3Error err = getDirectedEdgeDestination(unidirectionalEdge, &destination);
+  napiThrowErr(getDirectedEdgeDestination, err);
+    
   napiNapiH3Index(destination, result);
 
   return result;
@@ -1267,7 +1319,7 @@ napiFn(directedEdgeToBoundary) {
   napiArgs(1);
   napiGetH3IndexArg(0, unidirectionalEdge);
 
-  GeoBoundary geoBoundary;
+  CellBoundary geoBoundary;
 
   directedEdgeToBoundary(unidirectionalEdge, &geoBoundary);
 
@@ -1275,7 +1327,7 @@ napiFn(directedEdgeToBoundary) {
   for (int i = 0; i < geoBoundary.numVerts; i++) {
     napiFixedArray(latlngArray, 2);
     napiSetValue(latlngArray, 0, double, radsToDegs(geoBoundary.verts[i].lat), lat);
-    napiSetValue(latlngArray, 1, double, radsToDegs(geoBoundary.verts[i].lon), lng);
+    napiSetValue(latlngArray, 1, double, radsToDegs(geoBoundary.verts[i].lng), lng);
     napiSetNapiValue(result, i, latlngArray);
   }
 
@@ -1313,8 +1365,9 @@ napiFn(getNumCells) {
   napiArgs(1);
   napiGetArg(0, int32, int, res);
 
-  int64_t count = getNumCells(res);
-  double approximateCount = count;
+  int64_t count;
+  H3Error err = getNumCells(res, &count);
+  napiThrowErr(getNumCells, err);
 
   napiNapiValue(res, double, result);
 
@@ -1327,13 +1380,17 @@ napiFn(getHexagonEdgeLengthAvg) {
   napiGetStringArg(1, 3, unit);
 
   if (unit[0] == 'm') {
-    double edgeLength = getHexagonEdgeLengthAvgM(res);
+    double edgeLength;
+    H3Error err = getHexagonEdgeLengthAvgM(res, &edgeLength);
+    napiThrowErr(edgeLengthM, err);
 
     napiNapiValue(edgeLength, double, result);
 
     return result;
   } else if (unit[0] == 'k' && unit[1] == 'm') {
-    double edgeLength = getHexagonEdgeLengthAvgKm(res);
+    double edgeLength;
+    H3Error err = getHexagonEdgeLengthAvgKm(res, &edgeLength);
+    napiThrowErr(edgeLengthKm, err);
 
     napiNapiValue(edgeLength, double, result);
 
@@ -1350,19 +1407,25 @@ napiFn(edgeLength) {
   napiGetStringArg(1, 5, unit);
 
   if (unit[0] == 'm') {
-    double len = edgeLengthM(h3);
+    double len;
+    H3Error err = edgeLengthM(h3, &len);
+    napiThrowErr(edgeLengthM, err);
 
     napiNapiValue(len, double, result);
 
     return result;
   } else if (unit[0] == 'k' && unit[1] == 'm') {
-    double len = edgeLengthKm(h3);
+    double len;
+    H3Error err = edgeLengthKm(h3, &len);
+    napiThrowErr(edgeLengthKm, err);
 
     napiNapiValue(len, double, result);
 
     return result;
   } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's') {
-    double len = edgeLengthRads(h3);
+    double len;
+    H3Error err = edgeLengthRads(h3, &len);
+    napiThrowErr(edgeLengthRads, err);
 
     napiNapiValue(len, double, result);
 
@@ -1379,13 +1442,17 @@ napiFn(getHexagonAreaAvg) {
   napiGetStringArg(1, 4, unit);
 
   if (unit[0] == 'm' && unit[1] == '2') {
-    double area = getHexagonAreaAvgM2(res);
+    double area;
+    H3Error err = getHexagonAreaAvgM2(res, &area);
+    napiThrowErr(areaM2, err);
 
     napiNapiValue(area, double, result);
 
     return result;
   } else if (unit[0] == 'k' && unit[1] == 'm' && unit[2] == '2') {
-    double area = getHexagonAreaAvgKm2(res);
+    double area;
+    H3Error err = getHexagonAreaAvgKm2(res, &area);
+    napiThrowErr(areaKm2, err);
 
     napiNapiValue(area, double, result);
 
@@ -1402,19 +1469,25 @@ napiFn(cellArea) {
   napiGetStringArg(1, 6, unit);
 
   if (unit[0] == 'm' && unit[1] == '2') {
-    double area = cellAreaM2(h3);
+    double area;
+    H3Error err = cellAreaM2(h3, &area);
+    napiThrowErr(areaM2, err);
 
     napiNapiValue(area, double, result);
 
     return result;
   } else if (unit[0] == 'k' && unit[1] == 'm' && unit[2] == '2') {
-    double area = cellAreaKm2(h3);
+    double area;
+    H3Error err = cellAreaKm2(h3, &area);
+    napiThrowErr(areaKm2, err);
 
     napiNapiValue(area, double, result);
 
     return result;
   } else if (unit[0] == 'r' && unit[1] == 'a' && unit[2] == 'd' && unit[3] == 's' && unit[4] == '2') {
-    double area = cellAreaRads2(h3);
+    double area;
+    H3Error err = cellAreaRads2(h3, &area);
+    napiThrowErr(areaRads2, err);
 
     napiNapiValue(area, double, result);
 
@@ -1464,8 +1537,8 @@ napiFn(greatCircleDistance) {
     return NULL;
   }
 
-  GeoCoord orig = { origLat, origLng };
-  GeoCoord dest = { destLat, destLng };
+  LatLng orig = { origLat, origLng };
+  LatLng dest = { destLat, destLng };
 
 
   if (unit[0] == 'm') {
@@ -1493,7 +1566,7 @@ napiFn(greatCircleDistance) {
 }
 
 napiFn(getRes0Cells) {
-  int numHexes = res0IndexCount();
+  int numHexes = res0CellCount();
   H3Index* res0Indexes = calloc(numHexes, sizeof(H3Index));
   getRes0Cells(res0Indexes);
 
@@ -1559,13 +1632,13 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(getBaseCellNumber);
   napiExport(isValidCell);
   napiExport(isValidDirectedEdge);
-  napiExport(isValidVertex);
+  // napiExport(isValidVertex); // TODO: Implement this
   napiExport(isResClassIII);
   napiExport(isPentagon);
   napiExport(getIcosahedronFaces);
 
   // Traversal Functions
-  napiExport(griDisk);
+  napiExport(gridDisk);
   napiExport(gridDiskDistances);
   napiExport(gridRingUnsafe);
   napiExport(gridDistance);
@@ -1602,7 +1675,7 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(getHexagonAreaAvg);
   napiExport(cellArea);
   napiExport(greatCircleDistance);
-  napiExport(getRes0Cells;
+  napiExport(getRes0Cells);
   napiExport(getPentagons);
 
   return exports;
