@@ -560,11 +560,14 @@ napiFn(gridDistance) {
   napiGetH3IndexArg(0, origin);
   napiGetH3IndexArg(1, destination);
 
-  int32_t distance;
+  int64_t distance;
   H3Error err = gridDistance(origin, destination, &distance);
   napiThrowErr(gridDistance, err);
+  // TODO: This throws away the upper bits and would cause problems with fine resolutions and large
+  // distance, but not doing this deviates from what h3-js does.
+  int32_t distance2 = (int32_t)distance;
 
-  napiNapiValue(distance, int32, result);
+  napiNapiValue(distance2, int32, result);
 
   return result;
 }

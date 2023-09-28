@@ -21,6 +21,28 @@ const simpleTest = (test, methodName, args) =>
 const simpleArrTest = (test, methodName, args) =>
   test.deepEqual(h3node[methodName](...args).sort(), h3js[methodName](...args).sort())
 
+const simpleTryCatchTest = (test, methodName, args) => {
+  let node, js, nodeErr, jsErr;
+  try {
+    js = h3js[methodName](...args);
+  } catch (e) {
+    jsErr = e;
+  }
+  try {
+    node = h3node[methodName](...args);
+  } catch (e) {
+    nodeErr = e;
+  }
+  if (node && js && !nodeErr && !jsErr) {
+    test.deepEqual(node, js);
+  } else if (nodeErr && jsErr) {
+    test.equal(nodeErr.code, jsErr.code);
+  } else {
+    console.log({ node, js, nodeErr, jsErr });
+    throw new Error('wut');
+  }
+}
+
 const almostEqualTest = (test, methodName, args) => {
   let almostEqual = true
   const node = h3node[methodName](...args)
@@ -214,7 +236,7 @@ exportTest('gridDistance', () => h3node
     }
     if (this.count === 0) return false
     return Math.random() < 0.5
-  }, { count: 2 }), simpleTest)
+  }, { count: 2 }), simpleTryCatchTest)
 exportTest('cellToLocalIj', () => h3node
   .gridDisk(h3node.latLngToCell(...randCoords(), 9), 5)
   .filter(function(h, i, a) {
@@ -400,7 +422,7 @@ exportBenchmark('gridDistance', () => h3node
     }
     if (this.count === 0) return false
     return Math.random() < 0.5
-  }, { count: 2, }))
+  }, { count: 2, }), true)
 exportBenchmark('cellToLocalIj', () => h3node
   .gridDisk(h3node.latLngToCell(...randCoords(), 9), 5)
   .filter(function(h, i, a) {
