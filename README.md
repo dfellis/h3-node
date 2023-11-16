@@ -27,64 +27,63 @@ The `1.X.Y` versions released before have varying stages of completeness of the 
 ```js
 const h3 = require('h3-node')
 
-const h3index = h3.geoToH3(37.77, -122.43, 9)
-const h3center = h3.h3ToGeo(h3index)
-const h3outline = h3.h3ToGeoBoundary(h3index)
-const h3area = h3.cellArea(h3index)
+const h3index = h3.latLngToCell(37.77, -122.43, 9)
+const h3center = h3.cellToLatLng(h3index)
+const h3outline = h3.cellToBoundary(h3index)
+const h3area = h3.cellArea(h3index, h3.UNITS.m2)
 
-const res = h3.h3GetResolution(h3index)
-const baseCell = h3.h3GetBaseCell(h3index)
-const valid = h3.h3IsValid(h3index)
-const resIsClassIII = h3.h3IsResClassIII(h3index)
-const isPentagon = h3.h3IsPentagon(h3index)
-const faces = h3.h3GetFaces(h3Index)
-const neighbors = h3.kRing(h3index, 1)
-const threeRings = h3.kRingDistances(h3index, 3)
-const ring2Away = h3.hexRing(h3index, 2)
-const index2 = h3.geoToH3(38.88, -122.34, 9)
-const hexLine = h3.h3Line(h3index, index2)
-const hexDistance = h3.h3Distance(h3index, index2)
-const coords = h3.experimentalH3ToLocalIj(h3index, index2)
-const index2again = h3.experimentalLocalIjToH3(h3index, coords)
-const parent = h3.h3ToParent(h3index, 8)
-const immediateChildren = h3.h3ToChildren(h3index, 10)
-const centerChild = h3.h3ToCenterChild(h3index, 10)
-const packedRings = h3.compact([].concat(...threeRings))
-const unpackedRings = h3.uncompact(packedRings, 9)
-const bayAreaHexes = h3.polyfill([
+const res = h3.getResolution(h3index)
+const baseCell = h3.getBaseCellNumber(h3index)
+const valid = h3.isValidCell(h3index)
+const resIsClassIII = h3.isResClassIII(h3index)
+const isPentagon = h3.isPentagon(h3index)
+const faces = h3.getIcosahedronFaces(h3Index)
+const neighbors = h3.gridDisk(h3index, 1)
+const threeRings = h3.gridDiskDistances(h3index, 3)
+const ring2Away = h3.gridRingUnsafe(h3index, 2)
+const index2 = h3.latLngToCell(38.88, -122.34, 9)
+const hexLine = h3.gridPathCells(h3index, index2)
+const hexDistance = h3.gridDistance(h3index, index2)
+const coords = h3.cellToLocalIj(h3index, index2)
+const index2again = h3.localIjToCell(h3index, coords)
+const parent = h3.cellToParent(h3index, 8)
+const immediateChildren = h3.cellToChildren(h3index, 10)
+const centerChild = h3.cellToCenterChild(h3index, 10)
+const packedRings = h3.compactCells([].concat(...threeRings))
+const unpackedRings = h3.uncompactCells(packedRings, 9)
+const bayAreaHexes = h3.polygonToCells([
     [37.77, -122.43],
     [37.55, -122.43],
     [37.55, -122.23],
     [37.77, -122.23],
     [37.77, -122.43],
   ], 9)
-const diagonalLen = h3.pointDist([37.77, -122.43], [37.55, -122.23], hm.UNITS.km)
-const bayAreaHexGeo = h3.h3ToMultiPolygon(bayAreaHexes)
-const areNeighbors = h3.h3IndexesAreNeighbors(neighbors[0], neighbors[1])
-const edgeIndex = h3.getH3UnidirectionalEdge(neighbors[0], neighbors[1])
-const isValidEdge = h3.h3UnidirectionalEdgeIsValid(edgeIndex)
-const edgeLenM = h3.exactEdgeLength(edgeIndex, h3.UNITS.m)
-const origin = h3.getOriginH3IndexFromUnidirectionalEdge(edgeIndex)
-const destination = h3.getDestinationH3IndexFromUnidirectionalEdge(edgeIndex)
-const [start, end] = h3.getH3IndexesFromUnidirectionalEdge(edgeIndex)
-const edges = h3.getH3UnidirectionalEdgesFromHexagon(h3index)
-const edgeBoundaries = edges.map(h3.getH3UnidirectionalEdgeBoundary)
+const bayAreaHexGeo = h3.cellsToMultiPolygon(bayAreaHexes)
+const areNeighbors = h3.areNeighborCells(neighbors[0], neighbors[1])
+const edgeIndex = h3.cellsToDirectedEdge(neighbors[0], neighbors[1])
+const isValidEdge = h3.isValidDirectedEdge(edgeIndex)
+const edgeLenM = h3.edgeLength(edgeIndex, h3.UNITS.m)
+const origin = h3.getDirectedEdgeOrigin(edgeIndex)
+const destination = h3.getDirectedEdgeDestination(edgeIndex)
+const [start, end] = h3.directedEdgeToCells(edgeIndex)
+const edges = h3.originToDirectedEdges(h3index)
+const edgeBoundaries = edges.map(h3.directedEdgeToBoundary)
 const sfCoordsRads = [37.77, -122.43].map(h3.degsToRads)
 const sfCoordsDegs = sfCoordsRads.map(h3.radsToDegs)
 const resStats = Array.from(new Array(16), (x, res) => ({
   res,
   numHexagons: h3.numHexagons(res),
   edgeLength: {
-    m: h3.edgeLength(res, h3.UNITS.m),
-    km: h3.edgeLength(res, h3.UNITS.km),
+    m: h3.getHexagonEdgeLengthAvg(res, h3.UNITS.m),
+    km: h3.getHexagonEdgeLengthAvg(res, h3.UNITS.km),
   },
   hexArea: {
-    m2: h3.hexArea(res, h3.UNITS.m2),
-    km2: h3.hexArea(res, h3.UNITS.km2),
+    m2: h3.getHexagonAreaAvg(res, h3.UNITS.m2),
+    km2: h3.getHexagonAreaAvg(res, h3.UNITS.km2),
   },
-  pentagons: h3.getPentagonIndexes(res),
+  pentagons: h3.getPentagons(res),
 }))
-const res0Indexes = h3.getRes0Indexes()
+const res0Indexes = h3.getRes0Cells()
 ```
 
 ## Why another H3 for Node?
@@ -94,281 +93,285 @@ const res0Indexes = h3.getRes0Indexes()
 Being 100% javascript it works across the entire Javascript ecosystem (especially when paired with browserify or babel to handle the Node-isms for non-Node JS environments), but that portability comes at a cost in performance. Preliminary benchmarks show a significant speedup with the N-API approach:
 
 ```
-damocles@zelbinion:~/oss/h3-node(add-missing-functions)$ yarn test
-yarn run v1.22.17
+damocles@elack:~/oss/h3-node(upgrade-to-v4)$ yarn test
+yarn run v1.22.19
 $ nodeunit test
 
 index
-✔ h3IsValid_array
-✔ h3IsValid_uint32array
-✔ h3ToGeo_array
-✔ h3ToGeo_uint32array
-✔ geoToH3
-✔ h3ToGeo
-✔ h3ToGeoBoundary
-✔ h3GetResolution
-✔ h3GetBaseCell
-✔ h3IsValid
-✔ h3IsResClassIII
-✔ h3IsPentagon
-✔ h3GetFaces
-✔ kRing
-✔ kRingDistances
-✔ hexRing
-✔ h3Distance
-✔ experimentalH3ToLocalIj
-✔ experimentalLocalIjToH3
-✔ h3ToParent
-✔ h3ToChildren
-✔ h3ToCenterChild
-✔ compact
-✔ uncompact
-✔ polyfill
-✔ polyfillWithHoles
-✔ h3SetToMultiPolygon
-✔ h3SetToMultiPolygonGeoJsonMode
-✔ h3SetToMultiPolygonTrueMultiPolygon
-✔ h3IndexesAreNeighbors
-✔ getH3UnidirectionalEdge
-✔ h3UnidirectionalEdgeIsValid
-✔ getOriginH3IndexFromUnidirectionalEdge
-✔ getDestinationH3IndexFromUnidirectionalEdge
-✔ getH3IndexesFromUnidirectionalEdge
-✔ getH3UnidirectionalEdgesFromHexagon
-✔ getH3UnidirectionalEdgeBoundary
+✔ isValidCell_array
+✔ isValidCell_uint32array
+✔ cellToLatLng_array
+✔ cellToLatLng_uint32array
+✔ latLngToCell
+✔ cellToLatLng
+✔ cellToBoundary
+✔ getResolution
+✔ getBaseCellNumber
+✔ isValidCell
+✔ isResClassIII
+✔ isPentagon
+✔ getIcosahedronFaces
+✔ gridDisk
+✔ gridDiskDistances
+undefined
+undefined
+✔ gridRingUnsafe
+✔ gridDistance
+✔ cellToLocalIj
+undefined
+undefined
+✔ localIjToCell
+✔ cellToParent
+✔ cellToChildren
+✔ cellToCenterChild
+✔ compactCells
+✔ uncompactCells
+✔ polygonToCells
+✔ polygonToCellsWithHoles
+✔ cellsToMultiPolygon
+✔ cellsToMultiPolygonGeoJsonMode
+✔ cellsToMultiPolygonTrueMultiPolygon
+✔ areNeighborCells
+✔ cellsToDirectedEdge
+✔ isValidDirectedEdge
+✔ getDirectedEdgeOrigin
+✔ getDirectedEdgeDestination
+✔ directedEdgeToCells
+✔ originToDirectedEdges
+✔ directedEdgeToBoundary
 ✔ degsToRads
 ✔ radsToDegs
-✔ numHexagons
+✔ getNumCells
+✔ getHexagonEdgeLengthAvg
 ✔ edgeLength
-✔ exactEdgeLength
-✔ hexArea
+✔ getHexagonAreaAvg
 ✔ cellArea
-✔ pointDist
-✔ getRes0Indexes
-✔ getPentagonIndexes
+✔ greatCircleDistance
+✔ getRes0Cells
+✔ getPentagons
 
-geoToH3 Benchmark:
-H3-js time in ns:    18767309
-H3-node time in ns:  1945301
-✔ geoToH3Benchmark
+latLngToCell Benchmark:
+H3-js time in ns:    8407061
+H3-node time in ns:  1696666
+✔ latLngToCellBenchmark
 
-h3ToGeo Benchmark:
-H3-js time in ns:    2948717
-H3-node time in ns:  2840813
-✔ h3ToGeoBenchmark
+cellToLatLng Benchmark:
+H3-js time in ns:    3957443
+H3-node time in ns:  1500690
+✔ cellToLatLngBenchmark
 
-h3ToGeoBoundary Benchmark:
-H3-js time in ns:    6879898
-H3-node time in ns:  6483617
-✔ h3ToGeoBoundaryBenchmark
+cellToBoundary Benchmark:
+H3-js time in ns:    7288756
+H3-node time in ns:  5075260
+✔ cellToBoundaryBenchmark
 
-h3GetResolution Benchmark:
-H3-js time in ns:    3210624
-H3-node time in ns:  339291
-✔ h3GetResolutionBenchmark
+getResolution Benchmark:
+H3-js time in ns:    2497192
+H3-node time in ns:  299202
+✔ getResolutionBenchmark
 
-h3GetBaseCell Benchmark:
-H3-js time in ns:    439374
-H3-node time in ns:  335589
-✔ h3GetBaseCellBenchmark
+getBaseCellNumber Benchmark:
+H3-js time in ns:    341876
+H3-node time in ns:  304160
+✔ getBaseCellNumberBenchmark
 
-h3IsValid Benchmark:
-H3-js time in ns:    503768
-H3-node time in ns:  296408
-✔ h3IsValidBenchmark
+isValidCell Benchmark:
+H3-js time in ns:    259113
+H3-node time in ns:  263024
+✔ isValidCellBenchmark
 
-h3IsResClassIII Benchmark:
-H3-js time in ns:    443146
-H3-node time in ns:  367297
-✔ h3IsResClassIIIBenchmark
+isResClassIII Benchmark:
+H3-js time in ns:    649109
+H3-node time in ns:  470734
+✔ isResClassIIIBenchmark
 
-h3IsPentagon Benchmark:
-H3-js time in ns:    470733
-H3-node time in ns:  641706
-✔ h3IsPentagonBenchmark
+isPentagon Benchmark:
+H3-js time in ns:    477089
+H3-node time in ns:  310935
+✔ isPentagonBenchmark
 
-h3GetFaces Benchmark:
-H3-js time in ns:    5752932
-H3-node time in ns:  1352904
-✔ h3GetFacesBenchmark
+getIcosahedronFaces Benchmark:
+H3-js time in ns:    4100479
+H3-node time in ns:  1311698
+✔ getIcosahedronFacesBenchmark
 
-kRing Benchmark:
-H3-js time in ns:    111333014
-H3-node time in ns:  43828405
-✔ kRingBenchmark
+gridDisk Benchmark:
+H3-js time in ns:    119649189
+H3-node time in ns:  41318171
+✔ gridDiskBenchmark
 
-kRingDistances Benchmark:
-H3-js time in ns:    101881334
-H3-node time in ns:  59046078
-✔ kRingDistancesBenchmark
+gridDiskDistances Benchmark:
+H3-js time in ns:    104035995
+H3-node time in ns:  53421119
+✔ gridDiskDistancesBenchmark
 
-hexRing Benchmark:
-H3-js time in ns:    19888827
-H3-node time in ns:  10109520
-✔ hexRingBenchmark
+gridRingUnsafe Benchmark:
+H3-js time in ns:    13028001
+H3-node time in ns:  9361658
+✔ gridRingUnsafeBenchmark
 
-h3Distance Benchmark:
-H3-js time in ns:    6211304
-H3-node time in ns:  1193595
-✔ h3DistanceBenchmark
+gridDistance Benchmark:
+H3-js time in ns:    6042499
+H3-node time in ns:  1839702
+✔ gridDistanceBenchmark
 
-experimentalH3ToLocalIj Benchmark:
-H3-js time in ns:    2532111
-H3-node time in ns:  2190027
-✔ experimentalH3ToLocalIjBenchmark
+cellToLocalIj Benchmark:
+H3-js time in ns:    3213419
+H3-node time in ns:  2277539
+✔ cellToLocalIjBenchmark
 
-experimentalLocalIjToH3 Benchmark:
-H3-js time in ns:    9239362
-H3-node time in ns:  2014305
-✔ experimentalLocalIjToH3Benchmark
+localIjToCell Benchmark:
+H3-js time in ns:    10561051
+H3-node time in ns:  1960318
+✔ localIjToCellBenchmark
 
-h3Line Benchmark:
-H3-js time in ns:    67614960
-H3-node time in ns:  47620392
-✔ h3LineBenchmark
+gridPathCells Benchmark:
+H3-js time in ns:    66085174
+H3-node time in ns:  48151768
+✔ gridPathCellsBenchmark
 
-h3ToParent Benchmark:
-H3-js time in ns:    1715383
-H3-node time in ns:  682982
-✔ h3ToParentBenchmark
+cellToParent Benchmark:
+H3-js time in ns:    1062642
+H3-node time in ns:  411856
+✔ cellToParentBenchmark
 
-h3ToChildren Benchmark:
-H3-js time in ns:    939315510
-H3-node time in ns:  915475456
-✔ h3ToChildrenBenchmark
+cellToChildren Benchmark:
+H3-js time in ns:    985474186
+H3-node time in ns:  895306179
+✔ cellToChildrenBenchmark
 
-h3ToCenterChild Benchmark:
-H3-js time in ns:    1638208
-H3-node time in ns:  507539
-✔ h3ToCenterChildBenchmark
+cellToCenterChild Benchmark:
+H3-js time in ns:    1203932
+H3-node time in ns:  454949
+✔ cellToCenterChildBenchmark
 
-compact Benchmark:
-H3-js time in ns:    155996866
-H3-node time in ns:  50508975
-✔ compactBenchmark
+compactCells Benchmark:
+H3-js time in ns:    120589679
+H3-node time in ns:  49026745
+✔ compactCellsBenchmark
 
-uncompact Benchmark:
-H3-js time in ns:    49517782
-H3-node time in ns:  48204199
-✔ uncompactBenchmark
+uncompactCells Benchmark:
+H3-js time in ns:    51719983
+H3-node time in ns:  43166044
+✔ uncompactCellsBenchmark
 
-polyfill Benchmark:
-H3-js time in ns:    60105856
-H3-node time in ns:  26022048
-✔ polyfillBenchmark
+polygonToCells Benchmark:
+H3-js time in ns:    51227180
+H3-node time in ns:  27323211
+✔ polygonToCellsBenchmark
 
-polyfillWithHoles Benchmark:
-H3-js time in ns:    55994135
-H3-node time in ns:  42645147
-✔ polyfillWithHolesBenchmark
+polygonToCellsWithHoles Benchmark:
+H3-js time in ns:    57260529
+H3-node time in ns:  41699019
+✔ polygonToCellsWithHolesBenchmark
 
-h3SetToMultiPolygon Benchmark:
-H3-js time in ns:    464315666
-H3-node time in ns:  400713183
-✔ h3SetToMultiPolygonBenchmark
+cellsToMultiPolygon Benchmark:
+H3-js time in ns:    471233062
+H3-node time in ns:  393672608
+✔ cellsToMultiPolygonBenchmark
 
-h3SetToMultiPolygonGeoJsonMode Benchmark:
-H3-js time in ns:    451669984
-H3-node time in ns:  403379251
-✔ h3SetToMultiPolygonGeoJsonModeBenchmark
+cellsToMultiPolygonGeoJsonMode Benchmark:
+H3-js time in ns:    443336590
+H3-node time in ns:  390950036
+✔ cellsToMultiPolygonGeoJsonModeBenchmark
 
-h3SetToMultiPolygonTrueMultiPolygon Benchmark:
-H3-js time in ns:    588551030
-H3-node time in ns:  535388768
-✔ h3SetToMultiPolygonTrueMultiPolygonBenchmark
+cellsToMultiPolygonTrueMultiPolygon Benchmark:
+H3-js time in ns:    578690116
+H3-node time in ns:  518527732
+✔ cellsToMultiPolygonTrueMultiPolygonBenchmark
 
-h3IndexesAreNeighbors Benchmark:
-H3-js time in ns:    3111099
-H3-node time in ns:  832094
-✔ h3IndexesAreNeighborsBenchmark
+areNeighborCells Benchmark:
+H3-js time in ns:    2038122
+H3-node time in ns:  647922
+✔ areNeighborCellsBenchmark
 
-getH3UnidirectionalEdge Benchmark:
-H3-js time in ns:    3015695
-H3-node time in ns:  1296961
-✔ getH3UnidirectionalEdgeBenchmark
+cellsToDirectedEdge Benchmark:
+H3-js time in ns:    1948026
+H3-node time in ns:  993080
+✔ cellsToDirectedEdgeBenchmark
 
-h3UnidirectionalEdgeIsValid Benchmark:
-H3-js time in ns:    737598
-H3-node time in ns:  405152
-✔ h3UnidirectionalEdgeIsValidBenchmark
+isValidDirectedEdge Benchmark:
+H3-js time in ns:    635001
+H3-node time in ns:  294313
+✔ isValidDirectedEdgeBenchmark
 
-getOriginH3IndexFromUnidirectionalEdge Benchmark:
-H3-js time in ns:    778455
-H3-node time in ns:  435393
-✔ getOriginH3IndexFromUnidirectionalEdgeBenchmark
+getDirectedEdgeOrigin Benchmark:
+H3-js time in ns:    717554
+H3-node time in ns:  400194
+✔ getDirectedEdgeOriginBenchmark
 
-getDestinationH3IndexFromUnidirectionalEdge Benchmark:
-H3-js time in ns:    1009423
-H3-node time in ns:  507051
-✔ getDestinationH3IndexFromUnidirectionalEdgeBenchmark
+getDirectedEdgeDestination Benchmark:
+H3-js time in ns:    1119284
+H3-node time in ns:  978832
+✔ getDirectedEdgeDestinationBenchmark
 
-getH3IndexesFromUnidirectionalEdge Benchmark:
-H3-js time in ns:    1387476
-H3-node time in ns:  1084572
-✔ getH3IndexesFromUnidirectionalEdgeBenchmark
+directedEdgeToCells Benchmark:
+H3-js time in ns:    1186332
+H3-node time in ns:  933715
+✔ directedEdgeToCellsBenchmark
 
-getH3UnidirectionalEdgesFromHexagon Benchmark:
-H3-js time in ns:    2529737
-H3-node time in ns:  2227881
-✔ getH3UnidirectionalEdgesFromHexagonBenchmark
+originToDirectedEdges Benchmark:
+H3-js time in ns:    2235844
+H3-node time in ns:  2371965
+✔ originToDirectedEdgesBenchmark
 
-getH3UnidirectionalEdgeBoundary Benchmark:
-H3-js time in ns:    4458486
-H3-node time in ns:  2960521
-✔ getH3UnidirectionalEdgeBoundaryBenchmark
+directedEdgeToBoundary Benchmark:
+H3-js time in ns:    3099228
+H3-node time in ns:  2619554
+✔ directedEdgeToBoundaryBenchmark
 
 degsToRads Benchmark:
-H3-js time in ns:    31499
-H3-node time in ns:  96801
+H3-js time in ns:    33804
+H3-node time in ns:  98267
 ✔ degsToRadsBenchmark
 
 radsToDegs Benchmark:
-H3-js time in ns:    55315
-H3-node time in ns:  96102
+H3-js time in ns:    87302
+H3-node time in ns:  90584
 ✔ radsToDegsBenchmark
 
-numHexagons Benchmark:
-H3-js time in ns:    289215
-H3-node time in ns:  79061
-✔ numHexagonsBenchmark
+getNumCells Benchmark:
+H3-js time in ns:    330701
+H3-node time in ns:  88140
+✔ getNumCellsBenchmark
+
+getHexagonEdgeLengthAvg Benchmark:
+H3-js time in ns:    352072
+H3-node time in ns:  111467
+✔ getHexagonEdgeLengthAvgBenchmark
 
 edgeLength Benchmark:
-H3-js time in ns:    293336
-H3-node time in ns:  133048
+H3-js time in ns:    4884662
+H3-node time in ns:  2593644
 ✔ edgeLengthBenchmark
 
-exactEdgeLength Benchmark:
-H3-js time in ns:    5667935
-H3-node time in ns:  1829364
-✔ exactEdgeLengthBenchmark
-
-hexArea Benchmark:
-H3-js time in ns:    207010
-H3-node time in ns:  134585
-✔ hexAreaBenchmark
+getHexagonAreaAvg Benchmark:
+H3-js time in ns:    320085
+H3-node time in ns:  112515
+✔ getHexagonAreaAvgBenchmark
 
 cellArea Benchmark:
-H3-js time in ns:    6439128
-H3-node time in ns:  4002629
+H3-js time in ns:    8145085
+H3-node time in ns:  3914910
 ✔ cellAreaBenchmark
 
-pointDist Benchmark:
-H3-js time in ns:    1123195
-H3-node time in ns:  651134
-✔ pointDistBenchmark
+greatCircleDistance Benchmark:
+H3-js time in ns:    1210916
+H3-node time in ns:  730614
+✔ greatCircleDistanceBenchmark
 
-getRes0Indexes Benchmark:
-H3-js time in ns:    36434751
-H3-node time in ns:  31639278
-✔ getRes0IndexesBenchmark
+getRes0Cells Benchmark:
+H3-js time in ns:    35733206
+H3-node time in ns:  28694344
+✔ getRes0CellsBenchmark
 
-getPentagonIndexes Benchmark:
-H3-js time in ns:    6350848
-H3-node time in ns:  4006261
-✔ getPentagonIndexesBenchmark
+getPentagons Benchmark:
+H3-js time in ns:    5991654
+H3-node time in ns:  3668299
+✔ getPentagonsBenchmark
 
-OK: 452 assertions (9508ms)
-Done in 9.70s.
+OK: 452 assertions (9021ms)
+Done in 9.18s.
 ```
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.
