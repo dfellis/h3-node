@@ -21,6 +21,28 @@ const simpleTest = (test, methodName, args) =>
 const simpleArrTest = (test, methodName, args) =>
   test.deepEqual(h3node[methodName](...args).sort(), h3js[methodName](...args).sort())
 
+const simpleTryCatchTest = (test, methodName, args) => {
+  let node, js, nodeErr, jsErr;
+  try {
+    js = h3js[methodName](...args);
+  } catch (e) {
+    jsErr = e;
+  }
+  try {
+    node = h3node[methodName](...args);
+  } catch (e) {
+    nodeErr = e;
+  }
+  if (node && js && !nodeErr && !jsErr) {
+    test.deepEqual(node, js);
+  } else if (nodeErr && jsErr) {
+    test.equal(nodeErr.code, jsErr.code);
+  } else {
+    console.log({ node, js, nodeErr, jsErr });
+    throw new Error('wut');
+  }
+}
+
 const almostEqualTest = (test, methodName, args) => {
   let almostEqual = true
   const node = h3node[methodName](...args)
@@ -113,97 +135,100 @@ const exportTest = (methodName, genArgs, testFn, extraName = '') =>
 const exportBenchmark = (methodName, genArgs, useTryCatch = false, extraName = '') =>
   exports[`${methodName}${extraName}Benchmark`] = benchmarkGen(methodName, genArgs, useTryCatch, extraName)
 
-// h3IsValid has unique input parsing logic to return false rather than throw on invalid input
-exports['h3IsValid_array'] = test => {
-    test.equal(h3node.h3IsValid([0x3fffffff, 0x8528347]), true, 'Integer H3 index is considered an index');
+// isValidCell has unique input parsing logic to return false rather than throw on invalid input
+exports['isValidCell_array'] = test => {
+    test.equal(h3node.isValidCell([0x3fffffff, 0x8528347]), true, 'Integer H3 index is considered an index');
     test.equal(
-        h3node.h3IsValid([0x73fffffff, 0xff2834]), false,
+        h3node.isValidCell([0x73fffffff, 0xff2834]), false,
         'Integer with incorrect bits is not considered an index'
     );
-    test.equal(h3node.h3IsValid([]), false, 'Empty array is not valid');
-    test.equal(h3node.h3IsValid([1]), false, 'Array with a single element is not valid');
-    test.equal(h3node.h3IsValid([1, 'a']), false, 'Array with invalid elements is not valid');
-    test.equal(h3node.h3IsValid([0x3fffffff, 0x8528347, 0]), false,
+    test.equal(h3node.isValidCell([]), false, 'Empty array is not valid');
+    test.equal(h3node.isValidCell([1]), false, 'Array with a single element is not valid');
+    test.equal(h3node.isValidCell([1, 'a']), false, 'Array with invalid elements is not valid');
+    test.equal(h3node.isValidCell([0x3fffffff, 0x8528347, 0]), false,
         'Array with an additional element is not valid'
     );
     test.done();
 };
 
-exports['h3IsValid_uint32array'] = test => {
-    test.equal(h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347])), true, 'Integer H3 index is considered an index');
+exports['isValidCell_uint32array'] = test => {
+    test.equal(h3node.isValidCell(new Uint32Array([0x3fffffff, 0x8528347])), true, 'Integer H3 index is considered an index');
     test.equal(
-        h3node.h3IsValid(new Uint32Array([0x73fffffff, 0xff2834])), false,
+        h3node.isValidCell(new Uint32Array([0x73fffffff, 0xff2834])), false,
         'Integer with incorrect bits is not considered an index'
     );
-    test.equal(h3node.h3IsValid(new Uint32Array([])), false, 'Empty array is not valid');
-    test.equal(h3node.h3IsValid(new Uint32Array([1])), false, 'Array with a single element is not valid');
-    test.equal(h3node.h3IsValid(new Uint32Array([0x3fffffff, 0x8528347, 1])), false,
+    test.equal(h3node.isValidCell(new Uint32Array([])), false, 'Empty array is not valid');
+    test.equal(h3node.isValidCell(new Uint32Array([1])), false, 'Array with a single element is not valid');
+    test.equal(h3node.isValidCell(new Uint32Array([0x3fffffff, 0x8528347, 1])), false,
         'Array with too many elements is not valid'
     );
     test.done();
 };
+
+// TODO: Write tests for isValidDirectedEdge and isValidVertex
 
 // Exercise the macro used to reading H3 index input from Node
-exports['h3ToGeo_array'] = test => {
-    test.deepEqual(h3node.h3ToGeo([0x3fffffff, 0x8528347]), h3node.h3ToGeo('85283473fffffff'), 'Integer H3 index is considered an index');
-    test.deepEqual(h3node.h3ToGeo([0x73fffffff, 0xff2834]), h3node.h3ToGeo('ff28343fffffff'),
+exports['cellToLatLng_array'] = test => {
+    test.deepEqual(h3node.cellToLatLng([0x3fffffff, 0x8528347]), h3node.cellToLatLng('85283473fffffff'), 'Integer H3 index is considered an index');
+    test.deepEqual(h3node.cellToLatLng([0x73fffffff, 0xff2834]), h3node.cellToLatLng('ff28343fffffff'),
         'Integer with incorrect bits handled consistently'
     );
-    test.throws(() => h3node.h3ToGeo([]), 'Empty array is not valid');
-    test.throws(() => h3node.h3ToGeo([1]), 'Array with a single element is not valid');
-    test.throws(() => h3node.h3ToGeo([1, 'a']), 'Array with invalid elements is not valid');
-    test.throws(() => h3node.h3ToGeo([0x3fffffff, 0x8528347, 0]),
+    test.throws(() => h3node.cellToLatLng([]), 'Empty array is not valid');
+    test.throws(() => h3node.cellToLatLng([1]), 'Array with a single element is not valid');
+    test.throws(() => h3node.cellToLatLng([1, 'a']), 'Array with invalid elements is not valid');
+    test.throws(() => h3node.cellToLatLng([0x3fffffff, 0x8528347, 0]),
         'Array with an additional element is not valid'
     );
     test.done();
 };
 
-exports['h3ToGeo_uint32array'] = test => {
-    test.deepEqual(h3node.h3ToGeo(new Uint32Array([0x3fffffff, 0x8528347])), h3node.h3ToGeo('85283473fffffff'), 'Integer H3 index is considered an index');
-    test.deepEqual(h3node.h3ToGeo(new Uint32Array([0x73fffffff, 0xff2834])), h3node.h3ToGeo('ff28343fffffff'),
+exports['cellToLatLng_uint32array'] = test => {
+    test.deepEqual(h3node.cellToLatLng(new Uint32Array([0x3fffffff, 0x8528347])), h3node.cellToLatLng('85283473fffffff'), 'Integer H3 index is considered an index');
+    test.deepEqual(h3node.cellToLatLng(new Uint32Array([0x73fffffff, 0xff2834])), h3node.cellToLatLng('ff28343fffffff'),
         'Integer with incorrect bits handled consistently'
     );
-    test.throws(() => h3node.h3ToGeo(new Uint32Array([])), 'Empty array is not valid');
-    test.throws(() => h3node.h3ToGeo(new Uint32Array([1])), 'Array with a single element is not valid');
-    test.throws(() => h3node.h3ToGeo(new Uint32Array([0x3fffffff, 0x8528347, 1])),
+    test.throws(() => h3node.cellToLatLng(new Uint32Array([])), 'Empty array is not valid');
+    test.throws(() => h3node.cellToLatLng(new Uint32Array([1])), 'Array with a single element is not valid');
+    test.throws(() => h3node.cellToLatLng(new Uint32Array([0x3fffffff, 0x8528347, 1])),
         'Array with too many elements is not valid'
     );
     test.done();
 };
 
-exportTest('geoToH3', () => [...randCoords(), 9], simpleTest)
-exportTest('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)], almostEqualTest)
-exportTest('h3ToGeoBoundary', () => [h3node.geoToH3(...randCoords(), 9)], almostEqualTest)
-exportTest('h3GetResolution', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+exportTest('latLngToCell', () => [...randCoords(), 9], simpleTest)
+exportTest('cellToLatLng', () => [h3node.latLngToCell(...randCoords(), 9)], almostEqualTest)
+exportTest('cellToBoundary', () => [h3node.latLngToCell(...randCoords(), 9)], almostEqualTest)
+exportTest('getResolution', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ], simpleTest)
-exportTest('h3GetBaseCell', () => [h3node.geoToH3(...randCoords(), 9)], simpleTest)
-exportTest('h3IsValid', () => [
-  Math.random() > 0.5 ? h3node.geoToH3(...randCoords(), 9) : 'asdfjkl;'
+exportTest('getBaseCellNumber', () => [h3node.latLngToCell(...randCoords(), 9)], simpleTest)
+exportTest('isValidCell', () => [
+  Math.random() > 0.5 ? h3node.latLngToCell(...randCoords(), 9) : 'asdfjkl;'
 ], simpleTest)
-exportTest('h3IsResClassIII', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+// TODO: Write tests for isValidDirectedEdge and isValidVertex
+exportTest('isResClassIII', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ], simpleTest)
-exportTest('h3IsPentagon', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+exportTest('isPentagon', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ], simpleTest)
-exportTest('h3GetFaces', () => [
-  h3node.geoToH3(...randCoords(), 2)
+exportTest('getIcosahedronFaces', () => [
+  h3node.latLngToCell(...randCoords(), 2)
 ], simpleTest)
-exportTest('kRing', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+exportTest('gridDisk', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
 ], simpleTest)
-exportTest('kRingDistances', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+exportTest('gridDiskDistances', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
 ], simpleTest)
-exportTest('hexRing', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+exportTest('gridRingUnsafe', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
 ], allowPentagonTest)
-exportTest('h3Distance', () => h3node
-  .kRing(h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)), 5)
+exportTest('gridDistance', () => h3node
+  .gridDisk(h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)), 5)
   .filter(function(h, i, a) {
     if (a.length - i === this.count) {
       this.count--
@@ -211,9 +236,9 @@ exportTest('h3Distance', () => h3node
     }
     if (this.count === 0) return false
     return Math.random() < 0.5
-  }, { count: 2 }), simpleTest)
-exportTest('experimentalH3ToLocalIj', () => h3node
-  .kRing(h3node.geoToH3(...randCoords(), 9), 5)
+  }, { count: 2 }), simpleTryCatchTest)
+exportTest('cellToLocalIj', () => h3node
+  .gridDisk(h3node.latLngToCell(...randCoords(), 9), 5)
   .filter(function(h, i, a) {
     if (a.length - i === this.count) {
       this.count--
@@ -222,35 +247,35 @@ exportTest('experimentalH3ToLocalIj', () => h3node
     if (this.count === 0) return false
     return Math.random() < 0.5
   }, { count: 2 }), allowPentagonTest)
-exportTest('experimentalLocalIjToH3', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+exportTest('localIjToCell', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
   {
     i: Math.floor(Math.random() * 5 + 1),
     j: Math.floor(Math.random() * 5 + 1),
   },
 ], allowPentagonTest);
-// Pending solution to H3 issue #184: https://github.com/uber/h3/issues/184
-/* exportTest('h3Line', () => h3node.kRing(
-  h3node.geoToH3(...randCoords(), 9), Math.floor(Math.random() * 100)
+// Pending validation of solution to H3 issue #184: https://github.com/uber/h3/issues/184
+/* exportTest('gridPathCells', () => h3node.gridDisk(
+  h3node.latLngToCell(...randCoords(), 9), Math.floor(Math.random() * 100)
 ).filter((e, i, a) => i === 0 || i === a.length - 1), allowPentagonLineTest) */
-exportTest('h3ToParent', () => [
-  h3node.geoToH3(...randCoords(), 9),
+exportTest('cellToParent', () => [
+  h3node.latLngToCell(...randCoords(), 9),
   Math.floor(Math.random() * 9),
 ], simpleTest)
-exportTest('h3ToChildren', () => [
-  h3node.geoToH3(...randCoords(), 9),
+exportTest('cellToChildren', () => [
+  h3node.latLngToCell(...randCoords(), 9),
   Math.floor(15 - Math.random() * 6),
 ], simpleTest)
-exportTest('h3ToCenterChild', () => [
-  h3node.geoToH3(...randCoords(), 9),
+exportTest('cellToCenterChild', () => [
+  h3node.latLngToCell(...randCoords(), 9),
   Math.floor(15 - Math.random() * 6),
 ], simpleTest)
-exportTest('compact', () => [h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6)], simpleTest)
-exportTest('uncompact', () => [
-  h3node.compact(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6)),
+exportTest('compactCells', () => [h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6)], simpleTest)
+exportTest('uncompactCells', () => [
+  h3node.compactCells(h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6)),
   9,
 ], simpleTest)
-exportTest('polyfill', () => [
+exportTest('polygonToCells', () => [
   [
     [37.77, -122.43],
     [37.55, -122.43],
@@ -260,7 +285,7 @@ exportTest('polyfill', () => [
   ],
   6,
 ], simpleArrTest)
-exportTest('polyfill', () => [
+exportTest('polygonToCells', () => [
   [
     [
       [37.77, -122.43],
@@ -278,117 +303,128 @@ exportTest('polyfill', () => [
   ],
   6,
 ], simpleArrTest, 'WithHoles')
-exportTest('h3SetToMultiPolygon', () => [
-  h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+exportTest('cellsToMultiPolygon', () => [
+  h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6),
 ], almostEqualTest)
-exportTest('h3SetToMultiPolygon', () => [
-  h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+exportTest('cellsToMultiPolygon', () => [
+  h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6),
   true,
 ], almostEqualTest, 'GeoJsonMode')
-exportTest('h3SetToMultiPolygon', () => [
+exportTest('cellsToMultiPolygon', () => [
   [...new Set([
-    ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
-    ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 3),
+    ...h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6),
+    ...h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 3),
   ])]
 ], almostEqualTest, 'TrueMultiPolygon')
-exportTest('h3IndexesAreNeighbors', () =>
-  randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2),
+exportTest('areNeighborCells', () =>
+  randElements(h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 2), 2),
   simpleTest)
-exportTest('getH3UnidirectionalEdge', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [randIndex, h3node.kRing(randIndex, 1).pop()]
+exportTest('cellsToDirectedEdge', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [randIndex, h3node.gridDisk(randIndex, 1).pop()]
 }, simpleTest)
-exportTest('h3UnidirectionalEdgeIsValid', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
+exportTest('isValidDirectedEdge', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
   if (Math.random() > 0.5) {
-    return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+    return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
   } else {
     return [randIndex]
   }
 }, simpleTest)
-exportTest('getOriginH3IndexFromUnidirectionalEdge', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+exportTest('getDirectedEdgeOrigin', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
 }, simpleTest)
-exportTest('getDestinationH3IndexFromUnidirectionalEdge', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+exportTest('getDirectedEdgeDestination', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
 }, simpleTest)
-exportTest('getH3IndexesFromUnidirectionalEdge', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+exportTest('directedEdgeToCells', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
 }, simpleTest)
-exportTest('getH3UnidirectionalEdgesFromHexagon', () =>
-  [h3node.geoToH3(...randCoords(), 9)], simpleTest)
-exportTest('getH3UnidirectionalEdgeBoundary', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+exportTest('originToDirectedEdges', () =>
+  [h3node.latLngToCell(...randCoords(), 9)], simpleTest)
+exportTest('directedEdgeToBoundary', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
 }, almostEqualTest)
 exportTest('degsToRads', () => [Math.floor(Math.random() * 360)], almostEqualTest)
 exportTest('radsToDegs', () => [Math.floor(Math.random() * 2 * Math.PI)], almostEqualTest)
-exportTest('numHexagons', () => [Math.floor(Math.random() * 16)], almostEqualTest)
-exportTest('edgeLength', () => [
+exportTest('getNumCells', () => [Math.floor(Math.random() * 16)], almostEqualTest)
+exportTest('getHexagonEdgeLengthAvg', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m : h3node.UNITS.km,
 ], almostEqualTest)
-exportTest('exactEdgeLength', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
+exportTest('edgeLength', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
   return [
-    h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop()),
+    h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop()),
     Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
   ]
 }, almostEqualTest)
-exportTest('hexArea', () => [
+exportTest('getHexagonAreaAvg', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
 ], almostEqualTest)
 exportTest('cellArea', () => [
-  h3node.geoToH3(...randCoords(), 9),
+  h3node.latLngToCell(...randCoords(), 9),
   Math.random() < 0.34 ? h3node.UNITS.m2 : Math.random() > 0.5 ? h3node.UNITS.km2 : h3node.UNITS.rads2
 ], almostEqualTest)
-exportTest('pointDist', () => [
+exportTest('greatCircleDistance', () => [
   randCoords(),
   randCoords(),
   Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
 ], almostEqualTest)
-exportTest('getRes0Indexes', () => [], simpleTest)
-exportTest('getPentagonIndexes', () => [Math.floor(Math.random() * 16)], simpleArrTest)
+exportTest('getRes0Cells', () => [], simpleTest)
+exportTest('getPentagons', () => [Math.floor(Math.random() * 16)], simpleArrTest)
 
-exportBenchmark('geoToH3', () => [...randCoords(), 9])
-exportBenchmark('h3ToGeo', () => [h3node.geoToH3(...randCoords(), 9)])
-exportBenchmark('h3ToGeoBoundary', () => [h3node.geoToH3(...randCoords(), 9)])
-exportBenchmark('h3GetResolution', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+exportBenchmark('latLngToCell', () => [...randCoords(), 9])
+exportBenchmark('cellToLatLng', () => [h3node.latLngToCell(...randCoords(), 9)])
+exportBenchmark('cellToBoundary', () => [h3node.latLngToCell(...randCoords(), 9)])
+exportBenchmark('getResolution', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ])
-exportBenchmark('h3GetBaseCell', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+exportBenchmark('getBaseCellNumber', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ])
-exportBenchmark('h3IsValid', () => [
-  Math.random() > 0.5 ? h3node.geoToH3(...randCoords(), 9) : 'asdfjkl;'
+exportBenchmark('isValidCell', () => [
+  Math.random() > 0.5 ? h3node.latLngToCell(...randCoords(), 9) : 'asdfjkl;'
 ])
-exportBenchmark('h3IsResClassIII', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+// TODO: Write test for isValidDirectedEdge and isValidVertex
+exportBenchmark('isResClassIII', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ])
-exportBenchmark('h3IsPentagon', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+exportBenchmark('isPentagon', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ])
-exportBenchmark('h3GetFaces', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16))
+exportBenchmark('getIcosahedronFaces', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16))
 ])
-exportBenchmark('kRing', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+exportBenchmark('gridDisk', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
 ])
-exportBenchmark('kRingDistances', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+exportBenchmark('gridDiskDistances', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
 ])
-exportBenchmark('hexRing', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+exportBenchmark('gridRingUnsafe', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
   Math.floor(Math.random() * 10 + 1),
 ], true)
-exportBenchmark('h3Distance', () => h3node
-  .kRing(h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)), 5)
+exportBenchmark('gridDistance', () => h3node
+  .gridDisk(h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)), 5)
+  .filter(function(h, i, a) {
+    if (a.length - i === this.count) {
+      this.count--
+      return true
+    }
+    if (this.count === 0) return false
+    return Math.random() < 0.5
+  }, { count: 2, }), true)
+exportBenchmark('cellToLocalIj', () => h3node
+  .gridDisk(h3node.latLngToCell(...randCoords(), 9), 5)
   .filter(function(h, i, a) {
     if (a.length - i === this.count) {
       this.count--
@@ -397,44 +433,34 @@ exportBenchmark('h3Distance', () => h3node
     if (this.count === 0) return false
     return Math.random() < 0.5
   }, { count: 2, }))
-exportBenchmark('experimentalH3ToLocalIj', () => h3node
-  .kRing(h3node.geoToH3(...randCoords(), 9), 5)
-  .filter(function(h, i, a) {
-    if (a.length - i === this.count) {
-      this.count--
-      return true
-    }
-    if (this.count === 0) return false
-    return Math.random() < 0.5
-  }, { count: 2, }))
-exportBenchmark('experimentalLocalIjToH3', () => [
-  h3node.geoToH3(...randCoords(), Math.floor(Math.random() * 16)),
+exportBenchmark('localIjToCell', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
   {
     i: Math.floor(Math.random() * 5 + 1),
     j: Math.floor(Math.random() * 5 + 1),
   },
 ], true);
-exportBenchmark('h3Line', () => h3node.kRing(
-  h3node.geoToH3(...randCoords(), 9), Math.floor(Math.random() * 100)
+exportBenchmark('gridPathCells', () => h3node.gridDisk(
+  h3node.latLngToCell(...randCoords(), 9), Math.floor(Math.random() * 100)
 ).filter((e, i, a) => i === 0 || i === a.length - 1), true)
-exportBenchmark('h3ToParent', () => [
-  h3node.geoToH3(...randCoords(), 9),
+exportBenchmark('cellToParent', () => [
+  h3node.latLngToCell(...randCoords(), 9),
   Math.floor(Math.random() * 9),
 ])
-exportBenchmark('h3ToChildren', () => [
-  h3node.geoToH3(...randCoords(), 9),
+exportBenchmark('cellToChildren', () => [
+  h3node.latLngToCell(...randCoords(), 9),
   Math.floor(15 - Math.random() * 6),
 ])
-exportBenchmark('h3ToCenterChild', () => [
-  h3node.geoToH3(...randCoords(), 9),
+exportBenchmark('cellToCenterChild', () => [
+  h3node.latLngToCell(...randCoords(), 9),
   Math.floor(15 - Math.random() * 6),
 ])
-exportBenchmark('compact', () => [h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6)])
-exportBenchmark('uncompact', () => [
-  h3node.compact(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6)),
+exportBenchmark('compactCells', () => [h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6)])
+exportBenchmark('uncompactCells', () => [
+  h3node.compactCells(h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6)),
   9,
 ])
-exportBenchmark('polyfill', () => [
+exportBenchmark('polygonToCells', () => [
   [
     [37.77, -122.43],
     [37.55, -122.43],
@@ -444,7 +470,7 @@ exportBenchmark('polyfill', () => [
   ],
   4,
 ])
-exportBenchmark('polyfill', () => [
+exportBenchmark('polygonToCells', () => [
   [
     [
       [37.77, -122.43],
@@ -462,82 +488,82 @@ exportBenchmark('polyfill', () => [
   ],
   4,
 ], false, 'WithHoles')
-exportBenchmark('h3SetToMultiPolygon', () => [
-  h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+exportBenchmark('cellsToMultiPolygon', () => [
+  h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6),
 ])
-exportBenchmark('h3SetToMultiPolygon', () => [
-  h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
+exportBenchmark('cellsToMultiPolygon', () => [
+  h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6),
   true,
 ], false, 'GeoJsonMode')
-exportBenchmark('h3SetToMultiPolygon', () => [
+exportBenchmark('cellsToMultiPolygon', () => [
   [...new Set([
-    ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 6),
-    ...h3node.kRing(h3node.geoToH3(...randCoords(), 9), 3),
+    ...h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 6),
+    ...h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 3),
   ])]
 ], false, 'TrueMultiPolygon')
-exportBenchmark('h3IndexesAreNeighbors', () =>
-  randElements(h3node.kRing(h3node.geoToH3(...randCoords(), 9), 2), 2))
-exportBenchmark('getH3UnidirectionalEdge', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [randIndex, h3node.kRing(randIndex, 1).pop()]
+exportBenchmark('areNeighborCells', () =>
+  randElements(h3node.gridDisk(h3node.latLngToCell(...randCoords(), 9), 2), 2))
+exportBenchmark('cellsToDirectedEdge', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [randIndex, h3node.gridDisk(randIndex, 1).pop()]
 })
-exportBenchmark('h3UnidirectionalEdgeIsValid', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
+exportBenchmark('isValidDirectedEdge', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
   if (Math.random() > 0.5) {
-    return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+    return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
   } else {
     return [randIndex]
   }
 })
-exportBenchmark('getOriginH3IndexFromUnidirectionalEdge', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+exportBenchmark('getDirectedEdgeOrigin', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
 })
-exportBenchmark('getDestinationH3IndexFromUnidirectionalEdge', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+exportBenchmark('getDirectedEdgeDestination', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
 })
-exportBenchmark('getH3IndexesFromUnidirectionalEdge', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+exportBenchmark('directedEdgeToCells', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
 })
-exportBenchmark('getH3UnidirectionalEdgesFromHexagon', () =>
-  [h3node.geoToH3(...randCoords(), 9)], simpleTest)
-exportBenchmark('getH3UnidirectionalEdgeBoundary', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
-  return [h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop())]
+exportBenchmark('originToDirectedEdges', () =>
+  [h3node.latLngToCell(...randCoords(), 9)], simpleTest)
+exportBenchmark('directedEdgeToBoundary', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop())]
 })
 exportBenchmark('degsToRads', () => [Math.floor(Math.random() * 360)])
 exportBenchmark('radsToDegs', () => [Math.floor(Math.random() * 2 * Math.PI)])
-exportBenchmark('numHexagons', () => [Math.floor(Math.random() * 16)])
-exportBenchmark('edgeLength', () => [
+exportBenchmark('getNumCells', () => [Math.floor(Math.random() * 16)])
+exportBenchmark('getHexagonEdgeLengthAvg', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m : h3node.UNITS.km,
 ])
-exportBenchmark('exactEdgeLength', () => {
-  const randIndex = h3node.geoToH3(...randCoords(), 9)
+exportBenchmark('edgeLength', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
   return [
-    h3node.getH3UnidirectionalEdge(randIndex, h3node.kRing(randIndex, 1).pop()),
+    h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).pop()),
     Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
   ]
 })
-exportBenchmark('hexArea', () => [
+exportBenchmark('getHexagonAreaAvg', () => [
   Math.floor(Math.random() * 16),
   Math.random() > 0.5 ? h3node.UNITS.m2 : h3node.UNITS.km2,
 ])
 exportBenchmark('cellArea', () => [
-  h3node.geoToH3(...randCoords(), 9),
+  h3node.latLngToCell(...randCoords(), 9),
   Math.random() < 0.34 ? h3node.UNITS.m2 : Math.random() > 0.5 ? h3node.UNITS.km2 : h3node.UNITS.rads2
 ])
-exportBenchmark('pointDist', () => [
+exportBenchmark('greatCircleDistance', () => [
   randCoords(),
   randCoords(),
   Math.random() < 0.34 ? h3node.UNITS.m : Math.random() > 0.5 ? h3node.UNITS.km : h3node.UNITS.rads
 ])
-exportBenchmark('getRes0Indexes', () => [])
-exportBenchmark('getPentagonIndexes', () => [Math.floor(Math.random() * 16)])
+exportBenchmark('getRes0Cells', () => [])
+exportBenchmark('getPentagons', () => [Math.floor(Math.random() * 16)])
 
-/* console.log(h3node.polyfill(
+/* console.log(h3node.polygonToCells(
   [
     [
       [37.77, -122.43],
@@ -554,7 +580,7 @@ exportBenchmark('getPentagonIndexes', () => [Math.floor(Math.random() * 16)])
     ],
   ],
   6,
-).map(h => h3node.h3ToGeoBoundary(h))
+).map(h => h3node.cellToBoundary(h))
   .map(c => [...c.map(co => [co[1], co[0]])])
   .map(c2 => [...c2, c2[0]])
   .map(b => ({
