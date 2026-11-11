@@ -44,9 +44,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # bash: not in the node:alpine image, but required by the install script
-      - name: Install build tools (bash, cmake)
-        run: apk add --no-cache bash cmake
+      # The node:alpine image ships only node and npm; the build needs the
+      # rest (bash is required by the install script)
+      - name: Install build tools
+        run: apk add --no-cache bash git cmake make g++ python3
 
       - name: Install
         run: npm install

@@ -34,11 +34,11 @@ jobs:
             kind: native
             artifact: h3-node-linux-x64-glibc.tar.gz
           # Linux x86-64, musl — Alpine container
-          # (bash is not in the node:alpine image, but the install script needs it)
+          # (node:alpine ships only node and npm; the build needs the rest)
           - runner: ubuntu-latest
             kind: docker
             image: node:24-alpine
-            install: apk add --no-cache bash cmake && npm install
+            install: apk add --no-cache bash git cmake make g++ python3 && npm install
             artifact: h3-node-linux-x64-musl.tar.gz
           # Linux arm64, glibc — QEMU-emulated container
           - runner: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
             kind: docker
             platform: linux/arm64
             image: node:24-alpine
-            install: apk add --no-cache bash cmake && npm install
+            install: apk add --no-cache bash git cmake make g++ python3 && npm install
             artifact: h3-node-linux-arm64-musl.tar.gz
           # macOS arm64 — native (Apple has stopped shipping x86-64 Macs)
           - runner: macos-latest
