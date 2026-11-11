@@ -34,10 +34,11 @@ jobs:
             kind: native
             artifact: h3-node-linux-x64-glibc.tar.gz
           # Linux x86-64, musl — Alpine container
+          # (bash is not in the node:alpine image, but the install script needs it)
           - runner: ubuntu-latest
             kind: docker
             image: node:24-alpine
-            install: apk add --no-cache cmake && npm install
+            install: apk add --no-cache bash cmake && npm install
             artifact: h3-node-linux-x64-musl.tar.gz
           # Linux arm64, glibc — QEMU-emulated container
           - runner: ubuntu-latest
@@ -51,7 +52,7 @@ jobs:
             kind: docker
             platform: linux/arm64
             image: node:24-alpine
-            install: apk add --no-cache cmake && npm install
+            install: apk add --no-cache bash cmake && npm install
             artifact: h3-node-linux-arm64-musl.tar.gz
           # macOS arm64 — native (Apple has stopped shipping x86-64 Macs)
           - runner: macos-latest
@@ -91,12 +92,13 @@ jobs:
         # file ownership) stays clean; only prebuilds/ is copied back.
         run: |
           # -u root: node:alpine images default to the unprivileged `node`
-          # user, which cannot install cmake
+          # user, which cannot install cmake. sh (not bash): the alpine
+          # images have no bash until the install command adds it.
           docker run --rm -u root \
             --platform "${{ matrix.platform || 'linux/amd64' }}" \
             -v "$PWD":/src -w /src \
             "${{ matrix.image }}" \
-            bash -c "set -e; mkdir -p /work; cp -a /src/. /work/; cd /work; ${{ matrix.install }}; mkdir -p /src/prebuilds; cp -a /work/prebuilds/. /src/prebuilds/"
+            sh -c "set -e; mkdir -p /work; cp -a /src/. /work/; cd /work; ${{ matrix.install }}; mkdir -p /src/prebuilds; cp -a /work/prebuilds/. /src/prebuilds/"
 
       - name: Package artifact (tar.gz)
         if: ${{ !matrix.zip }}
