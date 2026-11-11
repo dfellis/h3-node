@@ -47,8 +47,13 @@ const almostEqualTest = (test, methodName, args) => {
   let almostEqual = true
   const node = h3node[methodName](...args)
   const js = h3js[methodName](...args)
-  for (let j = 0; j < node.length; j++) {
-    if (node[j] - js[j] > INFINITESIMAL) almostEqual = false
+  if (typeof node === 'number' && typeof js === 'number') {
+    // Tolerance scaled to the magnitude of the value
+    almostEqual = Math.abs(node - js) <= INFINITESIMAL * Math.max(1, Math.abs(js))
+  } else {
+    for (let j = 0; j < node.length; j++) {
+      if (Math.abs(node[j] - js[j]) > INFINITESIMAL * Math.max(1, Math.abs(js[j]))) almostEqual = false
+    }
   }
   test.ok(almostEqual)
 }
@@ -379,6 +384,133 @@ exportTest('greatCircleDistance', () => [
 exportTest('getRes0Cells', () => [], simpleTest)
 exportTest('getPentagons', () => [Math.floor(Math.random() * 16)], simpleArrTest)
 
+// --- H3 v4.5.0 API additions -------------------------------------------------
+exportTest('cellToChildPos', () => {
+  const childRes = Math.floor(9 + Math.random() * 6)
+  const child = h3node.latLngToCell(...randCoords(), childRes)
+  const parentRes = Math.floor(Math.random() * childRes)
+  return [child, parentRes]
+}, simpleTest)
+exportTest('childPosToCell', () => {
+  const childRes = Math.floor(9 + Math.random() * 6)
+  const child = h3node.latLngToCell(...randCoords(), childRes)
+  const parentRes = Math.floor(Math.random() * childRes)
+  const parent = h3node.cellToParent(child, parentRes)
+  const childPos = h3node.cellToChildPos(child, parentRes)
+  return [childPos, parent, childRes]
+}, simpleTest)
+exportTest('cellToChildrenSize', () => {
+  const cellRes = Math.floor(9 + Math.random() * 4)
+  const childRes = Math.floor(13 + Math.random() * 3)
+  return [h3node.latLngToCell(...randCoords(), cellRes), childRes]
+}, simpleTest)
+exportTest('cellToVertex', () => {
+  const cell = h3node.latLngToCell(...randCoords(), 9)
+  const numVerts = h3node.isPentagon(cell) ? 5 : 6
+  return [cell, Math.floor(Math.random() * numVerts)]
+}, simpleTest)
+exportTest('cellToVertexes', () => [
+  h3node.latLngToCell(...randCoords(), 9),
+], simpleArrTest)
+exportTest('vertexToLatLng', () => {
+  const cell = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellToVertex(cell, Math.floor(Math.random() * (h3node.isPentagon(cell) ? 5 : 6)))]
+}, almostEqualTest)
+exportTest('isValidVertex', () => {
+  const cell = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellToVertex(cell, 0)]
+}, simpleTest)
+exportTest('isValidIndex', () => {
+  const cell = h3node.latLngToCell(...randCoords(), 9)
+  return [Math.random() > 0.5 ? cell : h3node.cellToVertex(cell, 0)]
+}, simpleTest)
+exportTest('getIndexDigit', () => {
+  const res = Math.floor(2 + Math.random() * 14)
+  const cell = h3node.latLngToCell(...randCoords(), res)
+  return [cell, Math.floor(1 + Math.random() * res)]
+}, simpleTest)
+exportTest('gridRing', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
+  Math.floor(Math.random() * 5 + 1),
+], allowPentagonTest)
+exportTest('reverseDirectedEdge', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  const neighbor = h3node.gridDisk(randIndex, 1).filter(c => c !== randIndex)[0]
+  return [h3node.cellsToDirectedEdge(randIndex, neighbor)]
+}, simpleTest)
+exportTest('polygonToCellsExperimental', () => [
+  [
+    [37.77, -122.43],
+    [37.55, -122.43],
+    [37.55, -122.23],
+    [37.77, -122.23],
+    [37.77, -122.43],
+  ],
+  6,
+  'containmentCenter',
+], simpleArrTest)
+exportTest('polygonToCellsExperimental', () => [
+  [
+    [37.77, -122.43],
+    [37.55, -122.43],
+    [37.55, -122.23],
+    [37.77, -122.23],
+    [37.77, -122.43],
+  ],
+  6,
+  'containmentFull',
+], simpleArrTest, 'Full')
+exportTest('polygonToCellsExperimental', () => [
+  [
+    [37.77, -122.43],
+    [37.55, -122.43],
+    [37.55, -122.23],
+    [37.77, -122.23],
+    [37.77, -122.43],
+  ],
+  6,
+  'containmentOverlapping',
+], simpleArrTest, 'Overlapping')
+
+// constructCell is the inverse of getResolution/getBaseCellNumber/getIndexDigit,
+// so exercise it as a round-trip.
+exports['constructCell'] = test => {
+  const res = Math.floor(2 + Math.random() * 13)
+  const cell = h3node.latLngToCell(...randCoords(), res)
+  const baseCellNumber = h3node.getBaseCellNumber(cell)
+  const digits = []
+  for (let i = 1; i <= res; i++) digits.push(h3node.getIndexDigit(cell, i))
+  test.equal(h3node.constructCell(baseCellNumber, digits, res), cell, 'constructCell reconstructs the cell')
+  test.equal(h3node.constructCell(baseCellNumber, digits, res), h3js.constructCell(baseCellNumber, digits, res), 'constructCell matches h3-js')
+  test.equal(h3node.constructCell(baseCellNumber, digits), cell, 'constructCell infers res from digits length')
+  test.done()
+}
+
+// isValidVertex / isValidIndex should report false (not throw) for unparseable input
+exports['isValidVertex_invalid'] = test => {
+  test.equal(h3node.isValidVertex('zzzzzzzzzzzzzzzz'), false, 'non-hex string is not a valid vertex')
+  test.equal(h3node.isValidVertex([]), false, 'empty array is not a valid vertex')
+  test.equal(h3node.isValidVertex(12345), false, 'bare number is not a valid vertex')
+  test.done()
+}
+exports['isValidIndex_invalid'] = test => {
+  test.equal(h3node.isValidIndex('zzzzzzzzzzzzzzzz'), false, 'non-hex string is not a valid index')
+  test.equal(h3node.isValidIndex([]), false, 'empty array is not a valid index')
+  test.equal(h3node.isValidIndex(12345), false, 'bare number is not a valid index')
+  test.done()
+}
+
+// h3IndexToSplitLong / splitLongToH3Index are pure-JS helpers (not N-API
+// bindings), but they are part of the h3-js API surface we mirror
+exportTest('h3IndexToSplitLong', () => [h3node.latLngToCell(...randCoords(), 9)], simpleTest)
+exportTest('splitLongToH3Index', () => h3node.h3IndexToSplitLong(h3node.latLngToCell(...randCoords(), 9)), simpleTest)
+exports['h3IndexToSplitLong_invalid'] = test => {
+  test.deepEqual(h3node.h3IndexToSplitLong('zzzzzzzzzzzzzzzz'), [0, 0], 'non-hex string is [0, 0]')
+  test.deepEqual(h3node.h3IndexToSplitLong(12345), [0, 0], 'bare number is [0, 0]')
+  test.deepEqual(h3node.h3IndexToSplitLong([1, 2]), [1, 2], 'split longs pass through')
+  test.done()
+}
+
 exportBenchmark('latLngToCell', () => [...randCoords(), 9])
 exportBenchmark('cellToLatLng', () => [h3node.latLngToCell(...randCoords(), 9)])
 exportBenchmark('cellToBoundary', () => [h3node.latLngToCell(...randCoords(), 9)])
@@ -562,6 +694,65 @@ exportBenchmark('greatCircleDistance', () => [
 ])
 exportBenchmark('getRes0Cells', () => [])
 exportBenchmark('getPentagons', () => [Math.floor(Math.random() * 16)])
+
+// Benchmarks for the functions added in H3 4.5.0
+exportBenchmark('cellToChildPos', () => {
+  return [h3node.latLngToCell(...randCoords(), 9), Math.floor(Math.random() * 9)]
+})
+exportBenchmark('childPosToCell', () => {
+  const parent = h3node.latLngToCell(...randCoords(), 9)
+  // h3-js (and the binding) take the child position before the parent
+  return [Math.floor(Math.random() * h3node.cellToChildrenSize(parent, 10)), parent, 10]
+})
+exportBenchmark('cellToChildrenSize', () => [
+  h3node.latLngToCell(...randCoords(), 9),
+  Math.floor(10 + Math.random() * 6),
+])
+exportBenchmark('cellToVertex', () => {
+  const cell = h3node.latLngToCell(...randCoords(), 9)
+  return [cell, Math.floor(Math.random() * (h3node.isPentagon(cell) ? 5 : 6))]
+})
+exportBenchmark('cellToVertexes', () => [h3node.latLngToCell(...randCoords(), 9)])
+exportBenchmark('vertexToLatLng', () => [
+  h3node.cellToVertex(h3node.latLngToCell(...randCoords(), 9), 0),
+])
+exportBenchmark('isValidVertex', () => {
+  const cell = h3node.latLngToCell(...randCoords(), 9)
+  return [Math.random() > 0.5 ? h3node.cellToVertex(cell, 0) : 'zzzzzzzzzzzzzzzz']
+})
+exportBenchmark('constructCell', () => {
+  const cell = h3node.latLngToCell(...randCoords(), 9)
+  const digits = []
+  for (let i = 1; i <= 9; i++) digits.push(h3node.getIndexDigit(cell, i))
+  return [h3node.getBaseCellNumber(cell), digits]
+})
+exportBenchmark('getIndexDigit', () => {
+  const res = Math.floor(2 + Math.random() * 14)
+  const cell = h3node.latLngToCell(...randCoords(), res)
+  return [cell, Math.floor(1 + Math.random() * res)]
+})
+exportBenchmark('gridRing', () => [
+  h3node.latLngToCell(...randCoords(), Math.floor(Math.random() * 16)),
+  Math.floor(Math.random() * 5 + 1),
+], true)
+exportBenchmark('isValidIndex', () => [
+  Math.random() > 0.5 ? h3node.latLngToCell(...randCoords(), 9) : 'asdfjkl;'
+])
+exportBenchmark('polygonToCellsExperimental', () => [
+  [
+    [37.77, -122.43],
+    [37.55, -122.43],
+    [37.55, -122.23],
+    [37.77, -122.23],
+    [37.77, -122.43],
+  ],
+  4,
+  'containmentFull',
+])
+exportBenchmark('reverseDirectedEdge', () => {
+  const randIndex = h3node.latLngToCell(...randCoords(), 9)
+  return [h3node.cellsToDirectedEdge(randIndex, h3node.gridDisk(randIndex, 1).filter(c => c !== randIndex)[0])]
+})
 
 /* console.log(h3node.polygonToCells(
   [

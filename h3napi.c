@@ -1,5 +1,6 @@
 #include <node_api.h>
 #include <stdio.h>
+#include <string.h>
 #include "h3/src/h3lib/include/h3api.h"
 #include "h3api.h"
 
@@ -176,6 +177,19 @@
   }\
   if (napiNapiH3Index ## V != napi_ok)
 
+// Like napiNapiH3Index, but writes the full canonical string length. Cells
+// always have a leading zero nibble (15 hex chars), but other index kinds
+// (e.g. vertices) can be a full 16 chars, so use the actual length.
+#define napiNapiH3IndexFull(V, O) \
+  char V ## String[17];\
+  h3ToString(V, V ## String, 17);\
+  napi_value O;\
+  napi_status napiNapiH3IndexFull ## V = napi_create_string_utf8(env, V ## String, strlen(V ## String), &O);\
+  if (napiNapiH3IndexFull ## V != napi_ok) {\
+    napi_throw_error(env, "ENOSPC", "Could not write H3 string");\
+  }\
+  if (napiNapiH3IndexFull ## V != napi_ok)
+
 #define napiNapiUnidirectionalEdge(V, O) \
   char V ## String[17];\
   h3ToString(V, V ## String, 17);\
@@ -235,6 +249,48 @@
   napi_set_named_property(env, exports, #N, N ## Fn);
 
 
+/////////////////////////////////////////////////////////////////////////////////
+// Input Parsing Helpers                                                     //
+/////////////////////////////////////////////////////////////////////////////////
+
+// Parses an H3 index from a canonical string, a length-2 Uint32Array, or a
+// length-2 array of integers. Returns true and sets *out on success; returns
+// false (without throwing) on any failure. Used by the "isValid*" functions,
+// which should report false rather than throw for unparseable input.
+bool napiTryGetH3Index(napi_env env, napi_value arg, H3Index *out) {
+  char h3Str[17];
+  size_t h3StrCount;
+  if (napi_get_value_string_utf8(env, arg, h3Str, 17, &h3StrCount) == napi_ok) {
+    return stringToH3(h3Str, out) == E_SUCCESS;
+  }
+  napi_typedarray_type h3Type;
+  size_t h3Length;
+  void *h3Data;
+  if (napi_get_typedarray_info(env, arg, &h3Type, &h3Length, &h3Data, NULL, NULL) == napi_ok) {
+    if (h3Type != napi_uint32_array || h3Length != 2) return false;
+    *out = ((H3Index)*(((uint32_t *)h3Data) + 1) << 32) | *((uint32_t *)h3Data);
+    return true;
+  }
+  uint32_t h3ArrSz;
+  if (napi_get_array_length(env, arg, &h3ArrSz) == napi_ok) {
+    if (h3ArrSz != 2) return false;
+    napi_value v0, v1;
+    if (napi_get_element(env, arg, 0, &v0) != napi_ok ||
+        napi_get_element(env, arg, 1, &v1) != napi_ok) {
+      return false;
+    }
+    uint32_t p0, p1;
+    if (napi_get_value_uint32(env, v0, &p0) != napi_ok ||
+        napi_get_value_uint32(env, v1, &p1) != napi_ok) {
+      return false;
+    }
+    *out = ((H3Index)(p1) << 32) | (p0);
+    return true;
+  }
+  return false;
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////
 // Indexing Functions                                                        //
 ///////////////////////////////////////////////////////////////////////////////
@@ -286,6 +342,67 @@ napiFn(cellToBoundary) {
 
   return result;
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Vertex Functions                                                          //
+///////////////////////////////////////////////////////////////////////////////
+
+napiFn(cellToVertex) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, origin);
+  napiGetArg(1, int32, int, vertexNum);
+
+  H3Index vertex;
+  H3Error err = cellToVertex(origin, vertexNum, &vertex);
+  napiThrowErr(cellToVertex, err);
+
+  napiNapiH3IndexFull(vertex, result);
+
+  return result;
+}
+
+napiFn(cellToVertexes) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, origin);
+
+  H3Index vertexes[6];
+  H3Error err = cellToVertexes(origin, vertexes);
+  napiThrowErr(cellToVertexes, err);
+
+  napiVarArray(result) {
+    return NULL;
+  }
+  int arrayIndex = 0;
+  for (int i = 0; i < 6; i++) {
+    if (vertexes[i] == 0) continue;
+    H3Index v = vertexes[i];
+    napiNapiH3IndexFull(v, vertexVal) {
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, vertexVal) {
+      return NULL;
+    }
+    arrayIndex++;
+  }
+
+  return result;
+}
+
+napiFn(vertexToLatLng) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, vertex);
+
+  LatLng geo = { 0 };
+  H3Error err = vertexToLatLng(vertex, &geo);
+  napiThrowErr(vertexToLatLng, err);
+
+  napiFixedArray(result, 2);
+  napiSetValue(result, 0, double, radsToDegs(geo.lat), lat);
+  napiSetValue(result, 1, double, radsToDegs(geo.lng), lng);
+
+  return result;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Inspection Functions                                                      //
@@ -405,6 +522,52 @@ napiFn(getIcosahedronFaces) {
     }
   }
   free(out);
+
+  return result;
+}
+
+napiFn(isValidVertex) {
+  napiArgs(1);
+  napiGetNapiArg(0, vertex);
+  H3Index h3;
+  if (!napiTryGetH3Index(env, vertex, &h3)) {
+    napiNapiBool(false, result);
+    return result;
+  }
+
+  int isValid = isValidVertex(h3);
+
+  napiNapiBool(isValid, result);
+
+  return result;
+}
+
+napiFn(isValidIndex) {
+  napiArgs(1);
+  napiGetNapiArg(0, index);
+  H3Index h3;
+  if (!napiTryGetH3Index(env, index, &h3)) {
+    napiNapiBool(false, result);
+    return result;
+  }
+
+  int isValid = isValidIndex(h3);
+
+  napiNapiBool(isValid, result);
+
+  return result;
+}
+
+napiFn(getIndexDigit) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetArg(1, int32, int, res);
+
+  int digit;
+  H3Error err = getIndexDigit(h3, res, &digit);
+  napiThrowErr(getIndexDigit, err);
+
+  napiNapiValue(digit, int32, result);
 
   return result;
 }
@@ -669,6 +832,49 @@ napiFn(gridPathCells) {
   return result;
 }
 
+napiFn(gridRing) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetArg(1, int32, int, k);
+
+  int64_t maxSize;
+  H3Error err = maxGridRingSize(k, &maxSize);
+  napiThrowErr(maxGridRingSize, err);
+
+  H3Index *gridRingOut = calloc(maxSize, sizeof(H3Index));
+  if (gridRingOut == NULL) {
+    napi_throw_error(env, "ENOMEM", "Could not allocate gridRing output");
+    return NULL;
+  }
+  err = gridRing(h3, k, gridRingOut);
+  napiThrowErr(gridRing, err);
+
+  int arrayIndex = 0;
+  napiVarArray(result) {
+    free(gridRingOut);
+    return NULL;
+  }
+  for (int64_t i = 0; i < maxSize; i++) {
+    if (gridRingOut[i] == 0) continue;
+
+    H3Index h3Num = gridRingOut[i];
+    napiNapiH3Index(h3Num, h3Val) {
+      free(gridRingOut);
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, h3Val) {
+      free(gridRingOut);
+      return NULL;
+    }
+
+    arrayIndex++;
+  }
+
+  free(gridRingOut);
+
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Hierarchy Functions                                                       //
 ///////////////////////////////////////////////////////////////////////////////
@@ -850,6 +1056,100 @@ napiFn(uncompactCells) {
 
   free(compactedArray);
   free(uncompactedArray);
+  return result;
+}
+
+napiFn(cellToChildrenSize) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetArg(1, int32, int, childRes);
+
+  int64_t size;
+  H3Error err = cellToChildrenSize(h3, childRes, &size);
+  napiThrowErr(cellToChildrenSize, err);
+
+  napiNapiValue(size, int64, result);
+
+  return result;
+}
+
+napiFn(cellToChildPos) {
+  napiArgs(2);
+  napiGetH3IndexArg(0, h3);
+  napiGetArg(1, int32, int, parentRes);
+
+  int64_t pos;
+  H3Error err = cellToChildPos(h3, parentRes, &pos);
+  napiThrowErr(cellToChildPos, err);
+
+  napiNapiValue(pos, int64, result);
+
+  return result;
+}
+
+napiFn(childPosToCell) {
+  napiArgs(3);
+  napiGetArg(0, int64, int64_t, childPos);
+  napiGetH3IndexArg(1, parent);
+  napiGetArg(2, int32, int, childRes);
+
+  H3Index child;
+  H3Error err = childPosToCell(childPos, parent, childRes, &child);
+  napiThrowErr(childPosToCell, err);
+
+  napiNapiH3Index(child, result);
+
+  return result;
+}
+
+napiFn(constructCell) {
+  napiArgsWithOptional(2, 1);
+  napiGetArg(0, int32, int, baseCellNumber);
+  napiGetNapiArg(1, digitsArr);
+
+  uint32_t digitsLen;
+  if (napi_get_array_length(env, digitsArr, &digitsLen) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected an array of digits");
+    return NULL;
+  }
+
+  int res;
+  if (argc >= 3) {
+    if (napi_get_value_int32(env, argv[2], &res) != napi_ok) {
+      napi_throw_error(env, "EINVAL", "Expected an integer resolution");
+      return NULL;
+    }
+  } else {
+    res = (int)digitsLen;
+  }
+
+  if (res != (int)digitsLen) {
+    napi_throw_error(env, "EINVAL", "digits length must equal res");
+    return NULL;
+  }
+
+  int *digits = calloc(digitsLen, sizeof(int));
+  if (digits == NULL) {
+    napi_throw_error(env, "ENOMEM", "Could not allocate digits");
+    return NULL;
+  }
+  for (uint32_t i = 0; i < digitsLen; i++) {
+    napi_value d;
+    if (napi_get_element(env, digitsArr, i, &d) != napi_ok ||
+        napi_get_value_int32(env, d, &digits[i]) != napi_ok) {
+      free(digits);
+      napi_throw_error(env, "EINVAL", "Expected integer digits");
+      return NULL;
+    }
+  }
+
+  H3Index out;
+  H3Error err = constructCell(res, baseCellNumber, digits, &out);
+  free(digits);
+  napiThrowErr(constructCell, err);
+
+  napiNapiH3Index(out, result);
+
   return result;
 }
 
@@ -1208,6 +1508,192 @@ napiFn(cellsToMultiPolygon) {
   return out;
 }
 
+void freeGeoPolygon(GeoPolygon *polygon) {
+  if (polygon->geoloop.numVerts > 0) {
+    free(polygon->geoloop.verts);
+  }
+  if (polygon->numHoles > 0) {
+    for (int x = 0; x < polygon->numHoles; x++) {
+      if (polygon->holes[x].numVerts > 0) {
+        free(polygon->holes[x].verts);
+      }
+    }
+    free(polygon->holes);
+  }
+}
+
+// Builds a GeoPolygon from a JS geofence array (a single loop, or an array of
+// loops where the first is the exterior and the rest are holes). Returns true
+// on success (the caller must free the result with freeGeoPolygon); returns
+// false on failure with an error already thrown.
+bool napiParsePolygon(napi_env env, napi_value geofenceArrayObj, bool isGeoJson, GeoPolygon *polygon) {
+  polygon->numHoles = 0;
+  polygon->holes = NULL;
+
+  uint32_t arrayLength;
+  if (napi_get_array_length(env, geofenceArrayObj, &arrayLength) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
+    return false;
+  }
+  if (arrayLength == 0) return true;
+
+  napi_value firstInnerArray;
+  if (napi_get_element(env, geofenceArrayObj, 0, &firstInnerArray) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Could not read the first inner array");
+    return false;
+  }
+  uint32_t innerLength;
+  if (napi_get_array_length(env, firstInnerArray, &innerLength) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Could not read length of the first inner array");
+    return false;
+  }
+  if (innerLength == 0) return true;
+
+  napi_value nestingTest;
+  if (napi_get_element(env, firstInnerArray, 0, &nestingTest) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "No geofence data provided?");
+    return false;
+  }
+  napi_valuetype typepoke;
+  if (napi_typeof(env, nestingTest, &typepoke) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "No geofence data provided?");
+    return false;
+  }
+
+  if (typepoke == napi_number) {
+    // Single polygon shape, no holes
+    if (!polygonArrayToGeofence(env, &polygon->geoloop, geofenceArrayObj, isGeoJson)) {
+      freeGeoPolygon(polygon);
+      return false;
+    }
+  } else {
+    // Multiple polygon shapes: first is exterior, the rest are holes
+    polygon->numHoles = (int)arrayLength - 1;
+    if (polygon->numHoles > 0) {
+      polygon->holes = calloc(polygon->numHoles, sizeof(GeoLoop));
+    }
+    for (uint32_t i = 0; i < arrayLength; i++) {
+      napi_value polygonArray;
+      if (napi_get_element(env, geofenceArrayObj, i, &polygonArray) != napi_ok) {
+        freeGeoPolygon(polygon);
+        return false;
+      }
+      if (i == 0) {
+        if (!polygonArrayToGeofence(env, &polygon->geoloop, polygonArray, isGeoJson)) {
+          freeGeoPolygon(polygon);
+          return false;
+        }
+      } else {
+        if (!polygonArrayToGeofence(env, &polygon->holes[i - 1], polygonArray, isGeoJson)) {
+          freeGeoPolygon(polygon);
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
+napiFn(polygonToCellsExperimental) {
+  napiArgsWithOptional(3, 1);
+  napiGetNapiArg(0, geofenceArrayObj);
+  napiGetArg(1, int32, int, res);
+
+  // arg 2: containment flags, as a string name or a number
+  uint32_t flags;
+  char flagsStr[64];
+  size_t flagsStrLen;
+  if (napi_get_value_string_utf8(env, argv[2], flagsStr, sizeof(flagsStr), &flagsStrLen) == napi_ok) {
+    if (strcmp(flagsStr, "containmentCenter") == 0) {
+      flags = 0;
+    } else if (strcmp(flagsStr, "containmentFull") == 0) {
+      flags = 1;
+    } else if (strcmp(flagsStr, "containmentOverlapping") == 0) {
+      flags = 2;
+    } else if (strcmp(flagsStr, "containmentOverlappingBbox") == 0) {
+      flags = 3;
+    } else {
+      napi_throw_error(env, "EINVAL", "Unknown polygonToCellsExperimental flag");
+      return NULL;
+    }
+  } else if (napi_get_value_uint32(env, argv[2], &flags) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Expected flags as a string or number");
+    return NULL;
+  }
+
+  // arg 3 (optional): isGeoJson boolean
+  bool isGeoJson;
+  napi_value isGeoJsonObj;
+  if (argc >= 4) {
+    if (napi_coerce_to_bool(env, argv[3], &isGeoJsonObj) != napi_ok ||
+        napi_get_value_bool(env, isGeoJsonObj, &isGeoJson) != napi_ok) {
+      napi_throw_error(env, "EINVAL", "Expected a boolean isGeoJson flag");
+      return NULL;
+    }
+  } else {
+    isGeoJson = false;
+  }
+
+  GeoPolygon polygon = { 0 };
+  if (!napiParsePolygon(env, geofenceArrayObj, isGeoJson, &polygon)) {
+    return NULL;
+  }
+
+  if (polygon.geoloop.numVerts == 0 && polygon.numHoles == 0) {
+    freeGeoPolygon(&polygon);
+    napiVarArray(result);
+    return result;
+  }
+
+  int64_t maxSize;
+  H3Error err = maxPolygonToCellsSizeExperimental(&polygon, res, flags, &maxSize);
+  if (err) {
+    freeGeoPolygon(&polygon);
+    char code[5];
+    snprintf(code, 5, "%d", err);
+    napi_throw_error(env, code, "maxPolygonToCellsSizeExperimental failed");
+    return NULL;
+  }
+
+  H3Index *fill = calloc(maxSize, sizeof(H3Index));
+  if (fill == NULL) {
+    freeGeoPolygon(&polygon);
+    napi_throw_error(env, "ENOMEM", "Could not allocate polygon fill");
+    return NULL;
+  }
+  err = polygonToCellsExperimental(&polygon, res, flags, maxSize, fill);
+  freeGeoPolygon(&polygon);
+  if (err) {
+    free(fill);
+    char code[5];
+    snprintf(code, 5, "%d", err);
+    napi_throw_error(env, code, "polygonToCellsExperimental failed");
+    return NULL;
+  }
+
+  int arrayIndex = 0;
+  napiVarArray(result) {
+    free(fill);
+    return NULL;
+  }
+  for (int64_t i = 0; i < maxSize; i++) {
+    H3Index h3 = fill[i];
+    if (h3 == 0) continue;
+    napiNapiH3Index(h3, h3Obj) {
+      free(fill);
+      return NULL;
+    }
+    napiSetNapiValue(result, arrayIndex, h3Obj) {
+      free(fill);
+      return NULL;
+    }
+    arrayIndex++;
+  }
+
+  free(fill);
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Unidirectional Edge Functions                                             //
 ///////////////////////////////////////////////////////////////////////////////
@@ -1338,6 +1824,19 @@ napiFn(directedEdgeToBoundary) {
 }
 
 
+napiFn(reverseDirectedEdge) {
+  napiArgs(1);
+  napiGetH3IndexArg(0, unidirectionalEdge);
+
+  H3Index reversedEdge;
+  H3Error err = reverseDirectedEdge(unidirectionalEdge, &reversedEdge);
+  napiThrowErr(reverseDirectedEdge, err);
+
+  napiNapiUnidirectionalEdge(reversedEdge, result);
+
+  return result;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Miscellaneous Functions                                                   //
 ///////////////////////////////////////////////////////////////////////////////
@@ -1372,7 +1871,7 @@ napiFn(getNumCells) {
   H3Error err = getNumCells(res, &count);
   napiThrowErr(getNumCells, err);
 
-  napiNapiValue(res, double, result);
+  napiNapiValue(count, double, result);
 
   return result;
 }
@@ -1540,8 +2039,9 @@ napiFn(greatCircleDistance) {
     return NULL;
   }
 
-  LatLng orig = { origLat, origLng };
-  LatLng dest = { destLat, destLng };
+  // LatLng is in radians
+  LatLng orig = { degsToRads(origLat), degsToRads(origLng) };
+  LatLng dest = { degsToRads(destLat), degsToRads(destLng) };
 
 
   if (unit[0] == 'm') {
@@ -1629,21 +2129,27 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(latLngToCell);
   napiExport(cellToLatLng);
   napiExport(cellToBoundary);
+  napiExport(cellToVertex);
+  napiExport(cellToVertexes);
+  napiExport(vertexToLatLng);
 
   // Inspection Functions
   napiExport(getResolution);
   napiExport(getBaseCellNumber);
   napiExport(isValidCell);
   napiExport(isValidDirectedEdge);
-  // napiExport(isValidVertex); // TODO: Implement this
+  napiExport(isValidVertex);
   napiExport(isResClassIII);
   napiExport(isPentagon);
   napiExport(getIcosahedronFaces);
+  napiExport(isValidIndex);
+  napiExport(getIndexDigit);
 
   // Traversal Functions
   napiExport(gridDisk);
   napiExport(gridDiskDistances);
   napiExport(gridRingUnsafe);
+  napiExport(gridRing);
   napiExport(gridDistance);
   napiExport(cellToLocalIj);
   napiExport(localIjToCell);
@@ -1653,16 +2159,22 @@ napi_value init_all (napi_env env, napi_value exports) {
   napiExport(cellToParent);
   napiExport(cellToChildren);
   napiExport(cellToCenterChild);
+  napiExport(cellToChildrenSize);
+  napiExport(cellToChildPos);
+  napiExport(childPosToCell);
+  napiExport(constructCell);
   napiExport(compactCells);
   napiExport(uncompactCells);
 
   // Region Functions
   napiExport(polygonToCells);
   napiExport(cellsToMultiPolygon);
+  napiExport(polygonToCellsExperimental);
 
   // Unidirectional Edge Functions
   napiExport(areNeighborCells);
   napiExport(cellsToDirectedEdge);
+  napiExport(reverseDirectedEdge);
   napiExport(getDirectedEdgeOrigin);
   napiExport(getDirectedEdgeDestination);
   napiExport(directedEdgeToCells);

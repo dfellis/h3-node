@@ -6,15 +6,11 @@ H3 Bindings to Node using N-API
 
 ## Install
 
-To install this package, you need several development tools available: `git`, `gyp`, `make`, `cmake`, and a C compiler (`gcc` or `clang`). Once those are available, simply
-
 ```sh
-yarn add h3-node
-
--- or --
-
 npm i h3-node
 ```
+
+Prebuilt binaries are bundled for the platforms listed below, so no build tools are needed on those platforms. If no prebuild matches your platform, the package builds itself from source at install time; for that you need `git`, `make`, `cmake`, and a C compiler (`gcc` or `clang` on Unix, MSVC on Windows).
 
 ## Versions
 
@@ -84,7 +80,42 @@ const resStats = Array.from(new Array(16), (x, res) => ({
   pentagons: h3.getPentagons(res),
 }))
 const res0Indexes = h3.getRes0Cells()
+
+// Added in H3 4.5.0 (h3-js 4.5.0)
+const [lower, upper] = h3.h3IndexToSplitLong(h3index)
+const h3indexAgain = h3.splitLongToH3Index(lower, upper)
+const childPos = h3.cellToChildPos(h3index, h3.cellToParent(h3index, 8))
+const parentAgain = h3.childPosToCell(h3.cellToParent(h3index, 8), childPos, 9)
+const numChildren = h3.cellToChildrenSize(h3index, 10)
+const vertexes = h3.cellToVertexes(h3index)
+const vertices = h3.cellToVertex(h3index)
+const [lat, lng] = h3.vertexToLatLng(vertexes[0])
+const isValidVertex = h3.isValidVertex(vertexes[0])
+const constructed = h3.constructCell(h3.getBaseCellNumber(h3index), '2'.repeat(9), 9)
+const digit = h3.getIndexDigit(h3index, 2)
+const ring = h3.gridRing(h3index, 1)
+const isValidH3Index = h3.isValidIndex(h3index)
+const reversed = h3.reverseDirectedEdge(edgeIndex)
+const experimental = h3.polygonToCellsExperimental([
+    [37.77, -122.43],
+    [37.55, -122.43],
+    [37.55, -122.23],
+    [37.77, -122.23],
+    [37.77, -122.43],
+  ], 9, 'containmentFull')
 ```
+
+## Prebuilt Binaries
+
+Prebuilt binaries (N-API, so they work across all supported Node.js versions: 22, 24, and 26) are bundled for:
+
+| Platform | Architectures | Libc |
+|:---------|:--------------|:-----|
+| Linux    | x64, arm64    | glibc, musl |
+| macOS    | arm64         | — |
+| Windows  | x64           | — |
+
+If your platform isn't covered, the package falls back to building from source at install time (see [Install](#install)).
 
 ## Why another H3 for Node?
 
@@ -93,10 +124,6 @@ const res0Indexes = h3.getRes0Cells()
 Being 100% javascript it works across the entire Javascript ecosystem (especially when paired with browserify or babel to handle the Node-isms for non-Node JS environments), but that portability comes at a cost in performance. Preliminary benchmarks show a significant speedup with the N-API approach:
 
 ```
-damocles@elack:~/oss/h3-node(upgrade-to-v4)$ yarn test
-yarn run v1.22.19
-$ nodeunit test
-
 index
 ✔ isValidCell_array
 ✔ isValidCell_uint32array
@@ -113,8 +140,6 @@ index
 ✔ getIcosahedronFaces
 ✔ gridDisk
 ✔ gridDiskDistances
-undefined
-undefined
 ✔ gridRingUnsafe
 ✔ gridDistance
 ✔ cellToLocalIj
@@ -149,229 +174,313 @@ undefined
 ✔ greatCircleDistance
 ✔ getRes0Cells
 ✔ getPentagons
+✔ cellToChildPos
+✔ childPosToCell
+✔ cellToChildrenSize
+✔ cellToVertex
+✔ cellToVertexes
+✔ vertexToLatLng
+✔ isValidVertex
+✔ isValidIndex
+✔ getIndexDigit
+✔ gridRing
+✔ reverseDirectedEdge
+✔ polygonToCellsExperimental
+✔ polygonToCellsExperimentalFull
+✔ polygonToCellsExperimentalOverlapping
+✔ constructCell
+✔ isValidVertex_invalid
+✔ isValidIndex_invalid
+✔ h3IndexToSplitLong
+✔ splitLongToH3Index
+✔ h3IndexToSplitLong_invalid
 
 latLngToCell Benchmark:
-H3-js time in ns:    8407061
-H3-node time in ns:  1696666
+H3-js time in ns:    4619103
+H3-node time in ns:  488187
 ✔ latLngToCellBenchmark
 
 cellToLatLng Benchmark:
-H3-js time in ns:    3957443
-H3-node time in ns:  1500690
+H3-js time in ns:    857377
+H3-node time in ns:  563219
 ✔ cellToLatLngBenchmark
 
 cellToBoundary Benchmark:
-H3-js time in ns:    7288756
-H3-node time in ns:  5075260
+H3-js time in ns:    1665811
+H3-node time in ns:  1945230
 ✔ cellToBoundaryBenchmark
 
 getResolution Benchmark:
-H3-js time in ns:    2497192
-H3-node time in ns:  299202
+H3-js time in ns:    271315
+H3-node time in ns:  133543
 ✔ getResolutionBenchmark
 
 getBaseCellNumber Benchmark:
-H3-js time in ns:    341876
-H3-node time in ns:  304160
+H3-js time in ns:    197505
+H3-node time in ns:  131780
 ✔ getBaseCellNumberBenchmark
 
 isValidCell Benchmark:
-H3-js time in ns:    259113
-H3-node time in ns:  263024
+H3-js time in ns:    198206
+H3-node time in ns:  102865
 ✔ isValidCellBenchmark
 
 isResClassIII Benchmark:
-H3-js time in ns:    649109
-H3-node time in ns:  470734
+H3-js time in ns:    190221
+H3-node time in ns:  122021
 ✔ isResClassIIIBenchmark
 
 isPentagon Benchmark:
-H3-js time in ns:    477089
-H3-node time in ns:  310935
+H3-js time in ns:    202995
+H3-node time in ns:  123595
 ✔ isPentagonBenchmark
 
 getIcosahedronFaces Benchmark:
-H3-js time in ns:    4100479
-H3-node time in ns:  1311698
+H3-js time in ns:    1144622
+H3-node time in ns:  372416
 ✔ getIcosahedronFacesBenchmark
 
 gridDisk Benchmark:
-H3-js time in ns:    119649189
-H3-node time in ns:  41318171
+H3-js time in ns:    63013568
+H3-node time in ns:  16583512
 ✔ gridDiskBenchmark
 
 gridDiskDistances Benchmark:
-H3-js time in ns:    104035995
-H3-node time in ns:  53421119
+H3-js time in ns:    51902568
+H3-node time in ns:  20152803
 ✔ gridDiskDistancesBenchmark
 
 gridRingUnsafe Benchmark:
-H3-js time in ns:    13028001
-H3-node time in ns:  9361658
+H3-js time in ns:    5116657
+H3-node time in ns:  3881695
 ✔ gridRingUnsafeBenchmark
 
 gridDistance Benchmark:
-H3-js time in ns:    6042499
-H3-node time in ns:  1839702
+H3-js time in ns:    1699194
+H3-node time in ns:  852538
 ✔ gridDistanceBenchmark
 
 cellToLocalIj Benchmark:
-H3-js time in ns:    3213419
-H3-node time in ns:  2277539
+H3-js time in ns:    811320
+H3-node time in ns:  604086
 ✔ cellToLocalIjBenchmark
 
 localIjToCell Benchmark:
-H3-js time in ns:    10561051
-H3-node time in ns:  1960318
+H3-js time in ns:    4243581
+H3-node time in ns:  1036647
 ✔ localIjToCellBenchmark
 
 gridPathCells Benchmark:
-H3-js time in ns:    66085174
-H3-node time in ns:  48151768
+H3-js time in ns:    43459691
+H3-node time in ns:  10648602
 ✔ gridPathCellsBenchmark
 
 cellToParent Benchmark:
-H3-js time in ns:    1062642
-H3-node time in ns:  411856
+H3-js time in ns:    447589
+H3-node time in ns:  172287
 ✔ cellToParentBenchmark
 
 cellToChildren Benchmark:
-H3-js time in ns:    985474186
-H3-node time in ns:  895306179
+H3-js time in ns:    300050046
+H3-node time in ns:  287434062
 ✔ cellToChildrenBenchmark
 
 cellToCenterChild Benchmark:
-H3-js time in ns:    1203932
-H3-node time in ns:  454949
+H3-js time in ns:    712712
+H3-node time in ns:  260535
 ✔ cellToCenterChildBenchmark
 
 compactCells Benchmark:
-H3-js time in ns:    120589679
-H3-node time in ns:  49026745
+H3-js time in ns:    72515845
+H3-node time in ns:  17961426
 ✔ compactCellsBenchmark
 
 uncompactCells Benchmark:
-H3-js time in ns:    51719983
-H3-node time in ns:  43166044
+H3-js time in ns:    20682317
+H3-node time in ns:  16906043
 ✔ uncompactCellsBenchmark
 
 polygonToCells Benchmark:
-H3-js time in ns:    51227180
-H3-node time in ns:  27323211
+H3-js time in ns:    25933029
+H3-node time in ns:  9079646
 ✔ polygonToCellsBenchmark
 
 polygonToCellsWithHoles Benchmark:
-H3-js time in ns:    57260529
-H3-node time in ns:  41699019
+H3-js time in ns:    25985639
+H3-node time in ns:  14340948
 ✔ polygonToCellsWithHolesBenchmark
 
 cellsToMultiPolygon Benchmark:
-H3-js time in ns:    471233062
-H3-node time in ns:  393672608
+H3-js time in ns:    461377552
+H3-node time in ns:  84929496
 ✔ cellsToMultiPolygonBenchmark
 
 cellsToMultiPolygonGeoJsonMode Benchmark:
-H3-js time in ns:    443336590
-H3-node time in ns:  390950036
+H3-js time in ns:    461839378
+H3-node time in ns:  87037115
 ✔ cellsToMultiPolygonGeoJsonModeBenchmark
 
 cellsToMultiPolygonTrueMultiPolygon Benchmark:
-H3-js time in ns:    578690116
-H3-node time in ns:  518527732
+H3-js time in ns:    610045029
+H3-node time in ns:  120697333
 ✔ cellsToMultiPolygonTrueMultiPolygonBenchmark
 
 areNeighborCells Benchmark:
-H3-js time in ns:    2038122
-H3-node time in ns:  647922
+H3-js time in ns:    994547
+H3-node time in ns:  306441
 ✔ areNeighborCellsBenchmark
 
 cellsToDirectedEdge Benchmark:
-H3-js time in ns:    1948026
-H3-node time in ns:  993080
+H3-js time in ns:    629765
+H3-node time in ns:  300991
 ✔ cellsToDirectedEdgeBenchmark
 
 isValidDirectedEdge Benchmark:
-H3-js time in ns:    635001
-H3-node time in ns:  294313
+H3-js time in ns:    253210
+H3-node time in ns:  131360
 ✔ isValidDirectedEdgeBenchmark
 
 getDirectedEdgeOrigin Benchmark:
-H3-js time in ns:    717554
-H3-node time in ns:  400194
+H3-js time in ns:    331408
+H3-node time in ns:  170904
 ✔ getDirectedEdgeOriginBenchmark
 
 getDirectedEdgeDestination Benchmark:
-H3-js time in ns:    1119284
-H3-node time in ns:  978832
+H3-js time in ns:    416540
+H3-node time in ns:  181915
 ✔ getDirectedEdgeDestinationBenchmark
 
 directedEdgeToCells Benchmark:
-H3-js time in ns:    1186332
-H3-node time in ns:  933715
+H3-js time in ns:    507963
+H3-node time in ns:  384920
 ✔ directedEdgeToCellsBenchmark
 
 originToDirectedEdges Benchmark:
-H3-js time in ns:    2235844
-H3-node time in ns:  2371965
+H3-js time in ns:    737148
+H3-node time in ns:  708925
 ✔ originToDirectedEdgesBenchmark
 
 directedEdgeToBoundary Benchmark:
-H3-js time in ns:    3099228
-H3-node time in ns:  2619554
+H3-js time in ns:    1011980
+H3-node time in ns:  1092833
 ✔ directedEdgeToBoundaryBenchmark
 
 degsToRads Benchmark:
-H3-js time in ns:    33804
-H3-node time in ns:  98267
+H3-js time in ns:    19587
+H3-node time in ns:  40807
 ✔ degsToRadsBenchmark
 
 radsToDegs Benchmark:
-H3-js time in ns:    87302
-H3-node time in ns:  90584
+H3-js time in ns:    36149
+H3-node time in ns:  38083
 ✔ radsToDegsBenchmark
 
 getNumCells Benchmark:
-H3-js time in ns:    330701
-H3-node time in ns:  88140
+H3-js time in ns:    232130
+H3-node time in ns:  64342
 ✔ getNumCellsBenchmark
 
 getHexagonEdgeLengthAvg Benchmark:
-H3-js time in ns:    352072
-H3-node time in ns:  111467
+H3-js time in ns:    215739
+H3-node time in ns:  88438
 ✔ getHexagonEdgeLengthAvgBenchmark
 
 edgeLength Benchmark:
-H3-js time in ns:    4884662
-H3-node time in ns:  2593644
+H3-js time in ns:    1321156
+H3-node time in ns:  604257
 ✔ edgeLengthBenchmark
 
 getHexagonAreaAvg Benchmark:
-H3-js time in ns:    320085
-H3-node time in ns:  112515
+H3-js time in ns:    161977
+H3-node time in ns:  86474
 ✔ getHexagonAreaAvgBenchmark
 
 cellArea Benchmark:
-H3-js time in ns:    8145085
-H3-node time in ns:  3914910
+H3-js time in ns:    1551003
+H3-node time in ns:  955222
 ✔ cellAreaBenchmark
 
 greatCircleDistance Benchmark:
-H3-js time in ns:    1210916
-H3-node time in ns:  730614
+H3-js time in ns:    462517
+H3-node time in ns:  259022
 ✔ greatCircleDistanceBenchmark
 
 getRes0Cells Benchmark:
-H3-js time in ns:    35733206
-H3-node time in ns:  28694344
+H3-js time in ns:    11481543
+H3-node time in ns:  10656327
 ✔ getRes0CellsBenchmark
 
 getPentagons Benchmark:
-H3-js time in ns:    5991654
-H3-node time in ns:  3668299
+H3-js time in ns:    1209715
+H3-node time in ns:  1286511
 ✔ getPentagonsBenchmark
 
-OK: 452 assertions (9021ms)
-Done in 9.18s.
+cellToChildPos Benchmark:
+H3-js time in ns:    1071734
+H3-node time in ns:  161506
+✔ cellToChildPosBenchmark
+
+childPosToCell Benchmark:
+H3-js time in ns:    1162004
+H3-node time in ns:  321581
+✔ childPosToCellBenchmark
+
+cellToChildrenSize Benchmark:
+H3-js time in ns:    485771
+H3-node time in ns:  221781
+✔ cellToChildrenSizeBenchmark
+
+cellToVertex Benchmark:
+H3-js time in ns:    1316878
+H3-node time in ns:  425497
+✔ cellToVertexBenchmark
+
+cellToVertexes Benchmark:
+H3-js time in ns:    3041841
+H3-node time in ns:  1803081
+✔ cellToVertexesBenchmark
+
+vertexToLatLng Benchmark:
+H3-js time in ns:    690139
+H3-node time in ns:  571565
+✔ vertexToLatLngBenchmark
+
+isValidVertex Benchmark:
+H3-js time in ns:    332211
+H3-node time in ns:  163350
+✔ isValidVertexBenchmark
+
+constructCell Benchmark:
+H3-js time in ns:    768479
+H3-node time in ns:  376584
+✔ constructCellBenchmark
+
+getIndexDigit Benchmark:
+H3-js time in ns:    243542
+H3-node time in ns:  132492
+✔ getIndexDigitBenchmark
+
+gridRing Benchmark:
+H3-js time in ns:    7962526
+H3-node time in ns:  2710041
+✔ gridRingBenchmark
+
+isValidIndex Benchmark:
+H3-js time in ns:    217833
+H3-node time in ns:  97465
+✔ isValidIndexBenchmark
+
+polygonToCellsExperimental Benchmark:
+H3-js time in ns:    97051925
+H3-node time in ns:  60139124
+✔ polygonToCellsExperimentalBenchmark
+
+reverseDirectedEdge Benchmark:
+H3-js time in ns:    381964
+H3-node time in ns:  214928
+✔ reverseDirectedEdgeBenchmark
+
+OK: 624 assertions (4427ms)
 ```
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.
