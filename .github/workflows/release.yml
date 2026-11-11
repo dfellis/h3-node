@@ -1,137 +1,117 @@
 on:
   push:
-    # Sequence of patterns matched against refs/tags
     tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+      - 'v*'
 
 name: Create Release
 
+permissions:
+  contents: write
+
 jobs:
-  create_release:
+  create-release:
     name: Create Release
     runs-on: ubuntu-latest
-    outputs:
-      upload_url: ${{ steps.create_release.outputs.upload_url }}
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
-
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create the release (prebuild jobs upload their artifacts to it)
+        uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref }}
-          release_name: ${{ github.ref }}
-          body: Release ${{ github.ref }}
-          draft: false
-          prerelease: false
-  ubuntu:
-    needs: create_release
-    runs-on: ubuntu-latest
+          generate_release_notes: true
+
+  # One N-API prebuild per platform (os-arch-libc). N-API is ABI-stable
+  # across the supported Node versions (22/24/26), so the Node version does
+  # not need to be part of the build matrix.
+  prebuild:
+    name: prebuild ${{ matrix.artifact }}
+    needs: create-release
+    runs-on: ${{ matrix.runner }}
     strategy:
+      fail-fast: false
       matrix:
-        node-version: [18.x, 20.x]
+        include:
+          # Linux x86-64, glibc — native
+          - runner: ubuntu-latest
+            kind: native
+            artifact: h3-node-linux-x64-glibc.tar.gz
+          # Linux x86-64, musl — Alpine container
+          - runner: ubuntu-latest
+            kind: docker
+            image: node:24-alpine
+            install: apk add --no-cache cmake && npm install
+            artifact: h3-node-linux-x64-musl.tar.gz
+          # Linux arm64, glibc — QEMU-emulated container
+          - runner: ubuntu-latest
+            kind: docker
+            platform: linux/arm64
+            image: node:24
+            install: apt-get update -qq && apt-get install -y -qq cmake && npm install
+            artifact: h3-node-linux-arm64-glibc.tar.gz
+          # Linux arm64, musl — QEMU-emulated container
+          - runner: ubuntu-latest
+            kind: docker
+            platform: linux/arm64
+            image: node:24-alpine
+            install: apk add --no-cache cmake && npm install
+            artifact: h3-node-linux-arm64-musl.tar.gz
+          # macOS arm64 — native (Apple has stopped shipping x86-64 Macs)
+          - runner: macos-latest
+            kind: native
+            artifact: h3-node-darwin-arm64.tar.gz
+          # Windows x86-64 — native
+          - runner: windows-latest
+            kind: native
+            zip: true
+            artifact: h3-node-win32-x64.zip
 
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Set up QEMU (for emulated arm64 containers)
+        if: ${{ matrix.platform }}
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
-    - name: Build h3-node
-      run: yarn
+      - name: Set up Node.js 24
+        if: ${{ matrix.kind == 'native' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
 
-    - name: Generate Artifact
-      run: |
-        rm -rf node_modules/
-        rm -rf h3/
-        base=`basename $PWD`
-        cd -P ..
-        tar -czf /tmp/h3-node-ubuntu-${{ matrix.node-version }}.tar.gz $base
+      - name: Build prebuild (native)
+        if: ${{ matrix.kind == 'native' }}
+        # npm install runs the build (and prebuildify) via the install script
+        run: npm install
 
-    - name: Upload Artifact
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: /tmp/h3-node-ubuntu-${{ matrix.node-version }}.tar.gz
-        asset_name: h3-node-ubuntu-${{ matrix.node-version }}.tar.gz
-        asset_content_type: application/gzip
+      - name: Build prebuild (container)
+        if: ${{ matrix.kind == 'docker' }}
+        shell: bash
+        # Build in a container-local copy so the host workspace (and its
+        # file ownership) stays clean; only prebuilds/ is copied back.
+        run: |
+          # -u root: node:alpine images default to the unprivileged `node`
+          # user, which cannot install cmake
+          docker run --rm -u root \
+            --platform "${{ matrix.platform || 'linux/amd64' }}" \
+            -v "$PWD":/src -w /src \
+            "${{ matrix.image }}" \
+            bash -c "set -e; mkdir -p /work; cp -a /src/. /work/; cd /work; ${{ matrix.install }}; mkdir -p /src/prebuilds; cp -a /work/prebuilds/. /src/prebuilds/"
 
-  windows:
-    needs: create_release
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
+      - name: Package artifact (tar.gz)
+        if: ${{ !matrix.zip }}
+        shell: bash
+        # The archive contains the contents of prebuilds/ (e.g. linux-x64/...),
+        # matching what `prebuildify-ci download` (see scripts/fetch-artifacts.sh)
+        # extracts into ./prebuilds for publishing.
+        run: tar -czf "${{ matrix.artifact }}" -C prebuilds .
 
-    steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+      - name: Package artifact (zip)
+        if: ${{ matrix.zip }}
+        shell: pwsh
+        run: Compress-Archive -Path "prebuilds/*" -DestinationPath "${{ matrix.artifact }}"
 
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-
-    - name: Build h3-node
-      run: yarn
-
-    - name: Generate Artifact
-      run: |
-        rm -r -fo node_modules
-        rm -r -fo h3
-        Compress-Archive -Path "$(Get-Location)" -DestinationPath "$(Join-Path (Get-Location).Path 'h3-node-windows-${{ matrix.node-version }}.zip')"
-
-    - name: Upload Artifact
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: ./h3-node-windows-${{ matrix.node-version }}.zip
-        asset_name: h3-node-windows-${{ matrix.node-version }}.zip
-        asset_content_type: application/zip
-
-  macos:
-    needs: create_release
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-
-    steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
-
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-
-    - name: Build h3-node
-      run: yarn
-
-    - name: Generate Artifact
-      run: |
-        rm -rf node_modules/
-        rm -rf h3/
-        base=`basename $PWD`
-        cd -P ..
-        tar -czf /tmp/h3-node-macos-${{ matrix.node-version }}.tar.gz $base
-
-    - name: Upload Artifact
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ needs.create_release.outputs.upload_url }}
-        asset_path: /tmp/h3-node-macos-${{ matrix.node-version }}.tar.gz
-        asset_name: h3-node-macos-${{ matrix.node-version }}.tar.gz
-        asset_content_type: application/gzip
+      - name: Upload to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.artifact }}

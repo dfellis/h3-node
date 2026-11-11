@@ -1,88 +1,54 @@
-# This is a basic workflow to help you get started with Actions
-
 name: Unit Testing
 
-# Controls when the action will run. Triggers the workflow on push or pull request
-# events but only for the master branch
 on:
   push:
     branches: [ master ]
   pull_request:
     branches: [ master ]
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  tdd-ubuntu:
+  test:
+    name: node ${{ matrix.node-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        node-version: [ '22.x', '24.x', '26.x' ]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+
+      # npm install builds the module from source when no prebuild exists,
+      # which is always the case on a fresh CI checkout
+      - name: Install
+        run: npm install
+
+      - name: Run unit tests
+        run: npm test
+
+  # The Linux x64 prebuild ships in both libc flavors; make sure the module
+  # builds and passes the test suite against musl as well.
+  test-musl:
+    name: node 24 / linux musl (Alpine)
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    container:
+      image: node:24-alpine
+      options: --user root
     steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    # Set up Node.js
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
+      - name: Install build tools (cmake)
+        run: apk add --no-cache cmake
 
-    # Build library
-    - name: Build h3-node
-      run: yarn
+      - name: Install
+        run: npm install
 
-    # Run the BDD tests
-    - name: Run unit tests
-      run: yarn test
-
-  tdd-windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
-
-    # Set up Node.js
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-
-    # Build library
-    - name: Build h3-node
-      run: yarn
-
-    # Run the BDD tests
-    - name: Run unit tests
-      run: yarn test
-
-  tdd-osx:
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        node-version: [18.x, 20.x]
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:
-    # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-    - uses: actions/checkout@v2
-
-    # Set up Node.js
-    - name: Use Node.js ${{ matrix.node-version }}
-      uses: actions/setup-node@v1
-      with:
-        node-version: ${{ matrix.node-version }}
-
-    # Build library
-    - name: Build h3-node
-      run: yarn
-
-    # Run the BDD tests
-    - name: Run unit tests
-      run: yarn test
+      - name: Run unit tests
+        run: npm test

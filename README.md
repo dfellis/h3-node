@@ -6,15 +6,11 @@ H3 Bindings to Node using N-API
 
 ## Install
 
-To install this package, you need several development tools available: `git`, `gyp`, `make`, `cmake`, and a C compiler (`gcc` or `clang`). Once those are available, simply
-
 ```sh
-yarn add h3-node
-
--- or --
-
 npm i h3-node
 ```
+
+Prebuilt binaries are bundled for the platforms listed below, so no build tools are needed on those platforms. If no prebuild matches your platform, the package builds itself from source at install time; for that you need `git`, `make`, `cmake`, and a C compiler (`gcc` or `clang` on Unix, MSVC on Windows).
 
 ## Versions
 
@@ -84,7 +80,42 @@ const resStats = Array.from(new Array(16), (x, res) => ({
   pentagons: h3.getPentagons(res),
 }))
 const res0Indexes = h3.getRes0Cells()
+
+// Added in H3 4.5.0 (h3-js 4.5.0)
+const [lower, upper] = h3.h3IndexToSplitLong(h3index)
+const h3indexAgain = h3.splitLongToH3Index(lower, upper)
+const childPos = h3.cellToChildPos(h3index, h3.cellToParent(h3index, 8))
+const parentAgain = h3.childPosToCell(h3.cellToParent(h3index, 8), childPos, 9)
+const numChildren = h3.cellToChildrenSize(h3index, 10)
+const vertexes = h3.cellToVertexes(h3index)
+const vertices = h3.cellToVertex(h3index)
+const [lat, lng] = h3.vertexToLatLng(vertexes[0])
+const isValidVertex = h3.isValidVertex(vertexes[0])
+const constructed = h3.constructCell(h3.getBaseCellNumber(h3index), '2'.repeat(9), 9)
+const digit = h3.getIndexDigit(h3index, 2)
+const ring = h3.gridRing(h3index, 1)
+const isValidH3Index = h3.isValidIndex(h3index)
+const reversed = h3.reverseDirectedEdge(edgeIndex)
+const experimental = h3.polygonToCellsExperimental([
+    [37.77, -122.43],
+    [37.55, -122.43],
+    [37.55, -122.23],
+    [37.77, -122.23],
+    [37.77, -122.43],
+  ], 9, 'containmentFull')
 ```
+
+## Prebuilt Binaries
+
+Prebuilt binaries (N-API, so they work across all supported Node.js versions: 22, 24, and 26) are bundled for:
+
+| Platform | Architectures | Libc |
+|:---------|:--------------|:-----|
+| Linux    | x64, arm64    | glibc, musl |
+| macOS    | arm64         | — |
+| Windows  | x64           | — |
+
+If your platform isn't covered, the package falls back to building from source at install time (see [Install](#install)).
 
 ## Why another H3 for Node?
 
