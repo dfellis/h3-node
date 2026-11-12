@@ -125,7 +125,7 @@ Prebuilt binaries (N-API, so they work across all supported Node.js versions: 22
 
 If your platform isn't covered, the package falls back to building from source at install time (see [Install](#install)).
 
-Linux glibc prebuilds are verified during release builds to require no newer than `GLIBC_2.34`, so they load on Amazon Linux 2023. The Linux x64 glibc prebuild is built in a Debian bullseye container to keep the required symbol versions low.
+Linux glibc prebuilds are verified before publishing to require no newer than `GLIBC_2.34`, so they load on Amazon Linux 2023. The Linux x64 glibc prebuild is built in a Debian bullseye container to keep the required symbol versions low.
 
 ## Why another H3 for Node?
 

@@ -35,7 +35,7 @@ jobs:
           - runner: ubuntu-latest
             kind: docker
             image: node:24-bullseye
-            install: apt-get update -qq && apt-get install -y -qq git cmake binutils && npm install
+            install: apt-get update -qq && apt-get install -y -qq git cmake binutils && H3_NODE_CHECK_GLIBC=1 npm install
             artifact: h3-node-linux-x64-glibc.tar.gz
           # Linux x86-64, musl — Alpine container
           # (node:alpine ships only node and npm; the build needs the rest)
@@ -49,7 +49,7 @@ jobs:
             kind: docker
             platform: linux/arm64
             image: node:24
-            install: apt-get update -qq && apt-get install -y -qq git cmake binutils && npm install
+            install: apt-get update -qq && apt-get install -y -qq git cmake binutils && H3_NODE_CHECK_GLIBC=1 npm install
             artifact: h3-node-linux-arm64-glibc.tar.gz
           # Linux arm64, musl — QEMU-emulated container
           - runner: ubuntu-latest
