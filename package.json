@@ -1,12 +1,14 @@
 {
   "name": "h3-node",
-  "version": "4.5.0",
+  "version": "4.5.1",
   "description": "H3 Bindings to node using N-API",
   "main": "index.js",
+  "types": "index.d.ts",
   "files": [
     ".prebuild.sh",
     "binding.gyp",
     "h3napi.c",
+    "index.d.ts",
     "index.js",
     "prebuilds/",
     "scripts/",
@@ -18,7 +20,8 @@
     "rebuild": "rm -rf build && node-gyp-build",
     "clean": "node-gyp clean && node -e \"for (const d of ['h3', 'build']) { require('fs').rmSync(d, { recursive: true, force: true }) }\"",
     "fetch-artifacts": "bash scripts/fetch-artifacts.sh",
-    "test": "nodeunit test"
+    "test": "nodeunit test && npm run test:types",
+    "test:types": "tsc --noEmit --target es2017 --module commonjs test/types.ts"
   },
   "repository": {
     "type": "git",
@@ -43,6 +46,7 @@
   "devDependencies": {
     "h3-js": "^4.5.0",
     "nodeunit": "^0.11.3",
-    "prebuildify-ci": "^1.0.5"
+    "prebuildify-ci": "^1.0.5",
+    "typescript": "^3.9.10"
   }
 }
