@@ -26,6 +26,7 @@ const h3 = require('h3-node')
 const h3index = h3.latLngToCell(37.77, -122.43, 9)
 const h3center = h3.cellToLatLng(h3index)
 const h3outline = h3.cellToBoundary(h3index)
+const h3outlineGeoJson = h3.cellToBoundary(h3index, true)
 const h3area = h3.cellArea(h3index, h3.UNITS.m2)
 
 const res = h3.getResolution(h3index)
@@ -55,6 +56,7 @@ const bayAreaHexes = h3.polygonToCells([
     [37.77, -122.43],
   ], 9)
 const bayAreaHexGeo = h3.cellsToMultiPolygon(bayAreaHexes)
+const bayAreaHexGeoJson = h3.cellsToMultiPolygon(bayAreaHexes, true)
 const areNeighbors = h3.areNeighborCells(neighbors[0], neighbors[1])
 const edgeIndex = h3.cellsToDirectedEdge(neighbors[0], neighbors[1])
 const isValidEdge = h3.isValidDirectedEdge(edgeIndex)
@@ -105,6 +107,12 @@ const experimental = h3.polygonToCellsExperimental([
   ], 9, 'containmentFull')
 ```
 
+## TypeScript
+
+Type definitions are bundled in `index.d.ts`.
+
+The optional GeoJSON arguments mirror `h3-js`: `cellToBoundary(index, true)` and `cellsToMultiPolygon(cells, true)` return closed rings in `[lng, lat]` order, while `directedEdgeToBoundary(edge, true)` returns an open edge in `[lng, lat]` order. The default output remains `[lat, lng]` in degrees.
+
 ## Prebuilt Binaries
 
 Prebuilt binaries (N-API, so they work across all supported Node.js versions: 22, 24, and 26) are bundled for:
@@ -116,6 +124,8 @@ Prebuilt binaries (N-API, so they work across all supported Node.js versions: 22
 | Windows  | x64           | — |
 
 If your platform isn't covered, the package falls back to building from source at install time (see [Install](#install)).
+
+Linux glibc prebuilds are verified before publishing to require no newer than `GLIBC_2.34`, so they load on Amazon Linux 2023. The Linux x64 glibc prebuild is built in a Debian bullseye container to keep the required symbol versions low.
 
 ## Why another H3 for Node?
 

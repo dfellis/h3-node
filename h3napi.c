@@ -326,18 +326,44 @@ napiFn(cellToLatLng) {
 }
 
 napiFn(cellToBoundary) {
-  napiArgs(1);
+  napiArgsWithOptional(1, 1);
   napiGetH3IndexArg(0, h3);
+  napiGetNapiArg(1, formatAsGeoJsonObj);
+  if (napi_coerce_to_bool(env, formatAsGeoJsonObj, &formatAsGeoJsonObj) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Somehow cannot coerce a boolean?");
+    return NULL;
+  }
+  bool formatAsGeoJson;
+  if (napi_get_value_bool(env, formatAsGeoJsonObj, &formatAsGeoJson) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Somehow cannot extract boolean from JS object");
+    return NULL;
+  }
 
   CellBoundary geoBoundary = { 0 };
   cellToBoundary(h3, &geoBoundary);
 
-  napiFixedArray(result, geoBoundary.numVerts);
+  int coordCount = formatAsGeoJson ? geoBoundary.numVerts + 1 : geoBoundary.numVerts;
+  napiFixedArray(result, coordCount);
   for (int i = 0; i < geoBoundary.numVerts; i++) {
+    double lat = radsToDegs(geoBoundary.verts[i].lat);
+    double lng = radsToDegs(geoBoundary.verts[i].lng);
     napiFixedArray(latlngArray, 2);
-    napiSetValue(latlngArray, 0, double, radsToDegs(geoBoundary.verts[i].lat), lat);
-    napiSetValue(latlngArray, 1, double, radsToDegs(geoBoundary.verts[i].lng), lng);
+    if (formatAsGeoJson) {
+      napiSetValue(latlngArray, 0, double, lng, lngValue);
+      napiSetValue(latlngArray, 1, double, lat, latValue);
+    } else {
+      napiSetValue(latlngArray, 0, double, lat, latValue);
+      napiSetValue(latlngArray, 1, double, lng, lngValue);
+    }
     napiSetNapiValue(result, i, latlngArray);
+  }
+  if (formatAsGeoJson) {
+    double lat = radsToDegs(geoBoundary.verts[0].lat);
+    double lng = radsToDegs(geoBoundary.verts[0].lng);
+    napiFixedArray(firstCoord, 2);
+    napiSetValue(firstCoord, 0, double, lng, lngValue);
+    napiSetValue(firstCoord, 1, double, lat, latValue);
+    napiSetNapiValue(result, geoBoundary.numVerts, firstCoord);
   }
 
   return result;
@@ -1453,8 +1479,8 @@ napiFn(cellsToMultiPolygon) {
         }
         coordsLen++;
         // Then actually get the coordinates and insert them in the specified order
-        double lat = coord->vertex.lat;
-        double lng = coord->vertex.lng;
+        double lat = radsToDegs(coord->vertex.lat);
+        double lng = radsToDegs(coord->vertex.lng);
         if (formatAsGeoJson) {
           napiSetValue(coordObj, 0, double, lng, lngObj)  {
             destroyLinkedMultiPolygon(original);
@@ -1805,8 +1831,18 @@ napiFn(originToDirectedEdges) {
 }
 
 napiFn(directedEdgeToBoundary) {
-  napiArgs(1);
+  napiArgsWithOptional(1, 1);
   napiGetH3IndexArg(0, unidirectionalEdge);
+  napiGetNapiArg(1, formatAsGeoJsonObj);
+  if (napi_coerce_to_bool(env, formatAsGeoJsonObj, &formatAsGeoJsonObj) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Somehow cannot coerce a boolean?");
+    return NULL;
+  }
+  bool formatAsGeoJson;
+  if (napi_get_value_bool(env, formatAsGeoJsonObj, &formatAsGeoJson) != napi_ok) {
+    napi_throw_error(env, "EINVAL", "Somehow cannot extract boolean from JS object");
+    return NULL;
+  }
 
   CellBoundary geoBoundary;
 
@@ -1814,9 +1850,16 @@ napiFn(directedEdgeToBoundary) {
 
   napiFixedArray(result, geoBoundary.numVerts);
   for (int i = 0; i < geoBoundary.numVerts; i++) {
+    double lat = radsToDegs(geoBoundary.verts[i].lat);
+    double lng = radsToDegs(geoBoundary.verts[i].lng);
     napiFixedArray(latlngArray, 2);
-    napiSetValue(latlngArray, 0, double, radsToDegs(geoBoundary.verts[i].lat), lat);
-    napiSetValue(latlngArray, 1, double, radsToDegs(geoBoundary.verts[i].lng), lng);
+    if (formatAsGeoJson) {
+      napiSetValue(latlngArray, 0, double, lng, lngValue);
+      napiSetValue(latlngArray, 1, double, lat, latValue);
+    } else {
+      napiSetValue(latlngArray, 0, double, lat, latValue);
+      napiSetValue(latlngArray, 1, double, lng, lngValue);
+    }
     napiSetNapiValue(result, i, latlngArray);
   }
 

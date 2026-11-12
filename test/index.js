@@ -43,19 +43,21 @@ const simpleTryCatchTest = (test, methodName, args) => {
   }
 }
 
-const almostEqualTest = (test, methodName, args) => {
-  let almostEqual = true
-  const node = h3node[methodName](...args)
-  const js = h3js[methodName](...args)
+const almostEqual = (node, js) => {
   if (typeof node === 'number' && typeof js === 'number') {
     // Tolerance scaled to the magnitude of the value
-    almostEqual = Math.abs(node - js) <= INFINITESIMAL * Math.max(1, Math.abs(js))
-  } else {
-    for (let j = 0; j < node.length; j++) {
-      if (Math.abs(node[j] - js[j]) > INFINITESIMAL * Math.max(1, Math.abs(js[j]))) almostEqual = false
-    }
+    return Math.abs(node - js) <= INFINITESIMAL * Math.max(1, Math.abs(js))
   }
-  test.ok(almostEqual)
+  if (Array.isArray(node) && Array.isArray(js)) {
+    return node.length === js.length && node.every((value, index) => almostEqual(value, js[index]))
+  }
+  return node === js
+}
+
+const almostEqualTest = (test, methodName, args) => {
+  const node = h3node[methodName](...args)
+  const js = h3js[methodName](...args)
+  test.ok(almostEqual(node, js), `${methodName} should match h3-js`)
 }
 
 const allowPentagonTest = (test, methodName, args) => {
@@ -199,6 +201,63 @@ exports['cellToLatLng_uint32array'] = test => {
     );
     test.done();
 };
+
+exports['cellToBoundary_geoJson'] = test => {
+  const index = '8928342e20fffff'
+  const boundary = h3node.cellToBoundary(index)
+  const geoJsonBoundary = h3node.cellToBoundary(index, true)
+  const jsGeoJsonBoundary = h3js.cellToBoundary(index, true)
+
+  test.equal(geoJsonBoundary.length, boundary.length + 1, 'GeoJSON boundary should close the ring')
+  test.deepEqual(geoJsonBoundary[0], [boundary[0][1], boundary[0][0]], 'GeoJSON boundary should use [lng, lat] order')
+  test.deepEqual(geoJsonBoundary[geoJsonBoundary.length - 1], geoJsonBoundary[0], 'GeoJSON boundary should close the ring')
+  test.ok(almostEqual(geoJsonBoundary, jsGeoJsonBoundary), 'GeoJSON boundary should match h3-js')
+  test.done()
+}
+
+exports['cellsToMultiPolygon_geoJson'] = test => {
+  const index = '8928342e20fffff'
+  const cells = h3node.gridDisk(index, 1).sort()
+  const multiPolygon = h3node.cellsToMultiPolygon(cells)
+  const geoJsonMultiPolygon = h3node.cellsToMultiPolygon(cells, true)
+  const jsGeoJsonMultiPolygon = h3js.cellsToMultiPolygon(cells, true)
+
+  test.ok(almostEqual(multiPolygon, h3js.cellsToMultiPolygon(cells)), 'MultiPolygon should use degrees')
+  test.ok(almostEqual(geoJsonMultiPolygon, jsGeoJsonMultiPolygon), 'GeoJSON MultiPolygon should match h3-js')
+  test.ok(geoJsonMultiPolygon.every(polygon => polygon.every(ring => {
+    return ring.length > 1 && ring[0][0] === ring[ring.length - 1][0] && ring[0][1] === ring[ring.length - 1][1]
+  })), 'GeoJSON MultiPolygon rings should be closed')
+  test.ok(geoJsonMultiPolygon.every(polygon => polygon.every(ring => {
+    return ring.every(([lng, lat]) => Math.abs(lng) <= 180 && Math.abs(lat) <= 90)
+  })), 'GeoJSON MultiPolygon coordinates should be degrees in [lng, lat] order')
+
+  test.done()
+}
+
+exports['directedEdgeToBoundary_geoJson'] = test => {
+  const index = '8928342e20fffff'
+  const destination = h3node.gridDisk(index, 1).find(neighbor => neighbor !== index)
+  const edge = h3node.cellsToDirectedEdge(index, destination)
+  const boundary = h3node.directedEdgeToBoundary(edge)
+  const geoJsonBoundary = h3node.directedEdgeToBoundary(edge, true)
+  const jsGeoJsonBoundary = h3js.directedEdgeToBoundary(edge, true)
+
+  test.equal(geoJsonBoundary.length, boundary.length, 'GeoJSON edge boundary should preserve vertex count')
+  test.deepEqual(geoJsonBoundary.map(([lng, lat]) => [lat, lng]), boundary, 'GeoJSON edge boundary should use [lng, lat] order')
+  test.ok(almostEqual(geoJsonBoundary, jsGeoJsonBoundary), 'GeoJSON edge boundary should match h3-js')
+  test.done()
+}
+
+exports['cellsToMultiPolygon_roundTrip'] = test => {
+  const index = h3node.latLngToCell(37.77, -122.43, 9)
+  const cells = h3node.gridDisk(index, 2).sort()
+  const defaultRing = h3node.cellsToMultiPolygon(cells)[0][0]
+  const geoJsonRing = h3node.cellsToMultiPolygon(cells, true)[0][0]
+
+  test.deepEqual(h3node.polygonToCells(defaultRing, 9).sort(), cells, 'default MultiPolygon output should round-trip through polygonToCells')
+  test.deepEqual(h3node.polygonToCells(geoJsonRing, 9, true).sort(), cells, 'GeoJSON MultiPolygon output should round-trip through polygonToCells')
+  test.done()
+}
 
 exportTest('latLngToCell', () => [...randCoords(), 9], simpleTest)
 exportTest('cellToLatLng', () => [h3node.latLngToCell(...randCoords(), 9)], almostEqualTest)

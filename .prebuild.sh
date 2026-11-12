@@ -31,3 +31,10 @@ if [ "$(uname -s)" = "Linux" ]; then
 else
   prebuildify --napi
 fi
+
+# Amazon Linux 2023 and other supported enterprise runners provide glibc 2.34.
+# Release builds set H3_NODE_CHECK_GLIBC=1 so a too-new prebuild fails before it
+# can be published. Ordinary source/test builds may use the runner's glibc.
+if [ "$(uname -s)" = "Linux" ] && [ "${H3_NODE_CHECK_GLIBC:-0}" = "1" ]; then
+  bash scripts/check-glibc-prebuilds.sh
+fi

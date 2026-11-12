@@ -26,6 +26,10 @@ echo
 echo "Prebuilds now in ./prebuilds:"
 find prebuilds -type f | sort || true
 
+echo
+echo "Checking Linux glibc prebuilds against the supported baseline:"
+bash scripts/check-glibc-prebuilds.sh
+
 # Warn (don't fail) if a platform is missing, e.g. CI is still running
 for expected in \
   prebuilds/linux-x64/h3-node.glibc.node \
