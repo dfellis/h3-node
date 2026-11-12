@@ -172,6 +172,52 @@ exports['isValidCell_uint32array'] = test => {
     test.done();
 };
 
+exports['isValidCell_invalidStrings'] = test => {
+  const validIndex = '8928308280fffff'
+  const invalidStrings = [
+    'zzz',
+    '',
+    '   ',
+    `${validIndex} `,
+    ` ${validIndex}`,
+    `${validIndex}\n`,
+    `\t${validIndex}`,
+    `0x${validIndex}`,
+    '8928308280ffffg',
+    '8928308280fffff+',
+  ]
+
+  for (const value of invalidStrings) {
+    let nodeResult
+    let nodeError = null
+    try {
+      nodeResult = h3node.isValidCell(value)
+    } catch (error) {
+      nodeError = error
+    }
+
+    test.equal(nodeError, null, `isValidCell(${JSON.stringify(value)}) should not throw`)
+    test.equal(nodeResult, h3js.isValidCell(value), `isValidCell(${JSON.stringify(value)}) should match h3-js`)
+  }
+
+  const leadingZeroIndex = `00${validIndex}`
+  test.equal(h3node.isValidCell(leadingZeroIndex), h3js.isValidCell(leadingZeroIndex),
+    'leading zeroes should match h3-js')
+  test.equal(h3node.isValidCell(validIndex), true, 'canonical cell string remains valid')
+
+  test.done()
+}
+
+exports['invalidCellStringsThrowOutsideIsValidCell'] = test => {
+  // h3-js returns sentinel/empty values for some malformed indexes. h3-node
+  // intentionally treats those as caller errors, except for isValidCell.
+  test.throws(() => h3node.getResolution('zzz'), 'getResolution should throw')
+  test.throws(() => h3node.cellToLatLng('zzz'), 'cellToLatLng should throw')
+  test.throws(() => h3node.gridDisk('zzz', 1), 'gridDisk should throw')
+  test.throws(() => h3node.compactCells(['zzz']), 'compactCells should throw')
+  test.done()
+}
+
 // TODO: Write tests for isValidDirectedEdge and isValidVertex
 
 // Exercise the macro used to reading H3 index input from Node

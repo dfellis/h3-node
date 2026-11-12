@@ -107,6 +107,10 @@ const experimental = h3.polygonToCellsExperimental([
   ], 9, 'containmentFull')
 ```
 
+## Invalid Index Strings
+
+`isValidCell` matches `h3-js` and returns `false` for malformed strings, including whitespace-padded values, rather than throwing. Other index-consuming functions intentionally throw on malformed strings instead of returning `h3-js` sentinel values such as `-1`, empty arrays, or coordinates derived from an unparsed string.
+
 ## TypeScript
 
 Type definitions are bundled in `index.d.ts`.

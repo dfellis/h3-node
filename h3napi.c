@@ -1,5 +1,6 @@
 #include <node_api.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include "h3/src/h3lib/include/h3api.h"
 #include "h3api.h"
@@ -290,6 +291,62 @@ bool napiTryGetH3Index(napi_env env, napi_value arg, H3Index *out) {
   return false;
 }
 
+static int hexDigitValue(char c) {
+  if (c >= '0' && c <= '9') return c - '0';
+  if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+  if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+  return -1;
+}
+
+// Parses a string H3 index using the same shape rules as h3-js: every character
+// must be ASCII hexadecimal, leading zeroes are ignored, and the significant
+// value may not exceed 64 bits. Unlike stringToH3(), this does not accept
+// surrounding whitespace or other trailing characters.
+static bool napiTryGetStrictH3IndexString(napi_env env, napi_value arg, H3Index *out) {
+  size_t length = 0;
+  if (napi_get_value_string_utf8(env, arg, NULL, 0, &length) != napi_ok) {
+    return false;
+  }
+
+  char *str = malloc(length + 1);
+  if (str == NULL) {
+    return false;
+  }
+
+  size_t copied = 0;
+  if (napi_get_value_string_utf8(env, arg, str, length + 1, &copied) != napi_ok || copied != length) {
+    free(str);
+    return false;
+  }
+
+  bool ok = true;
+  uint64_t value = 0;
+  size_t significantDigits = 0;
+  for (size_t i = 0; i < length; i++) {
+    int digit = hexDigitValue(str[i]);
+    if (digit < 0) {
+      ok = false;
+      break;
+    }
+    if (digit != 0 || significantDigits > 0) {
+      significantDigits++;
+      if (significantDigits > 16) {
+        ok = false;
+        break;
+      }
+      value = (value << 4) | (uint64_t)digit;
+    }
+  }
+  free(str);
+
+  if (!ok) {
+    return false;
+  }
+
+  *out = (H3Index)value;
+  return true;
+}
+
 
 ///////////////////////////////////////////////////////////////////////////////
 // Indexing Functions                                                        //
@@ -461,7 +518,6 @@ napiFn(isValidCell) {
   // inlined napiGetH3IndexArg in order to return false instead of throwing
   H3Index h3;
   /*For string form input*/
-  char h3Str[17];
   size_t h3StrCount;
   /*For typedarray form input*/
   napi_typedarray_type h3Type;
@@ -471,9 +527,11 @@ napiFn(isValidCell) {
   napiGetNapiArg(0, h3Arr);
   uint32_t h3ArrSz;
 
-  if (napi_get_value_string_utf8(env, argv[0], h3Str, 17, &h3StrCount) == napi_ok) {
-    H3Error err = stringToH3(h3Str, &h3);\
-    napiThrowErr(isValidCell, err);\
+  if (napi_get_value_string_utf8(env, argv[0], NULL, 0, &h3StrCount) == napi_ok) {
+    if (!napiTryGetStrictH3IndexString(env, argv[0], &h3)) {
+      napiNapiBool(false, result);
+      return result;
+    }
   } else if (napi_get_typedarray_info(env, h3Arr, &h3Type, &h3Length, &h3Data, NULL, NULL) == napi_ok) {
     if (h3Type != napi_uint32_array || h3Length != 2) {
       napiNapiBool(false, result);

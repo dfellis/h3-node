@@ -31,11 +31,12 @@ jobs:
         include:
           # Linux x86-64, glibc — Debian bullseye container. Building on
           # ubuntu-latest can produce a binary that requires GLIBC_2.38, which
-          # fails to load on Amazon Linux 2023 (glibc 2.34).
+          # fails to load on Amazon Linux 2023 (glibc 2.34). Bullseye is
+          # archived, so use archive.debian.org for package installation.
           - runner: ubuntu-latest
             kind: docker
             image: node:24-bullseye
-            install: apt-get update -qq && apt-get install -y -qq git cmake binutils && H3_NODE_CHECK_GLIBC=1 npm install
+            install: sed -i 's|http://deb.debian.org|http://archive.debian.org|g; s|http://security.debian.org|http://archive.debian.org|g' /etc/apt/sources.list && apt-get -o Acquire::Check-Valid-Until=false update && apt-get install -y --no-install-recommends git cmake binutils && H3_NODE_CHECK_GLIBC=1 npm install
             artifact: h3-node-linux-x64-glibc.tar.gz
           # Linux x86-64, musl — Alpine container
           # (node:alpine ships only node and npm; the build needs the rest)
