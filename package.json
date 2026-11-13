@@ -20,7 +20,7 @@
     "rebuild": "rm -rf build && node-gyp-build",
     "clean": "node-gyp clean && node -e \"for (const d of ['h3', 'build']) { require('fs').rmSync(d, { recursive: true, force: true }) }\"",
     "fetch-artifacts": "bash scripts/fetch-artifacts.sh",
-    "test": "nodeunit test && npm run test:types",
+    "test": "node --test --test-concurrency=1 test/index.js test/types-coverage.js && npm run test:types",
     "test:types": "tsc --noEmit --target es2017 --module commonjs test/types.ts"
   },
   "repository": {
@@ -45,8 +45,6 @@
   },
   "devDependencies": {
     "h3-js": "^4.5.0",
-    "nodeunit": "^0.11.3",
-    "prebuildify-ci": "^1.0.5",
-    "typescript": "^3.9.10"
+    "typescript": "^7.0.2"
   }
 }

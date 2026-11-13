@@ -1,7 +1,21 @@
 const h3js = require('h3-js')
 const h3node = require('..')
+const { test: runTest } = require('node:test')
+const assert = require('node:assert')
 
 const INFINITESIMAL = 0.0000001
+
+const registerTest = (name, fn) => runTest(name, t => {
+  const test = {
+    expect() {},
+    deepEqual: assert.deepEqual,
+    equal: assert.equal,
+    ok: assert.ok,
+    throws(block) { assert.throws(block) },
+    done() {},
+  }
+  return fn(test)
+})
 
 const testGen = (methodName, genArgs, testFn) => test => {
   test.expect(10)
@@ -12,7 +26,7 @@ const testGen = (methodName, genArgs, testFn) => test => {
   for (let i = 0; i < 10; i++) {
     testFn(test, methodName, runs[i])
   }
-  test.done()
+  test.done();
 }
 
 const simpleTest = (test, methodName, args) =>
@@ -122,7 +136,7 @@ const benchmarkGen = (methodName, genArgs, useTryCatch = false, extraName = '') 
   console.log(`${methodName}${extraName} Benchmark:`)
   console.log('H3-js time in ns:   ', h3jsTime[0] * 1e9 + h3jsTime[1])
   console.log('H3-node time in ns: ', h3nodeTime[0] * 1e9 + h3nodeTime[1])
-  test.done()
+  test.done();
 }
 
 const randCoords = () => [360 * Math.random() - 180, 180 * Math.random() - 90]
@@ -137,13 +151,13 @@ const randElements = (array, numItems) => Array.from(new Array(numItems), functi
 }, { usedIndices: [] }).map(i => array[i])
 
 const exportTest = (methodName, genArgs, testFn, extraName = '') =>
-  exports[`${methodName}${extraName}`] = testGen(methodName, genArgs, testFn)
+  registerTest(`${methodName}${extraName}`, testGen(methodName, genArgs, testFn))
 
 const exportBenchmark = (methodName, genArgs, useTryCatch = false, extraName = '') =>
-  exports[`${methodName}${extraName}Benchmark`] = benchmarkGen(methodName, genArgs, useTryCatch, extraName)
+  registerTest(`${methodName}${extraName}Benchmark`, benchmarkGen(methodName, genArgs, useTryCatch, extraName))
 
 // isValidCell has unique input parsing logic to return false rather than throw on invalid input
-exports['isValidCell_array'] = test => {
+registerTest('isValidCell_array', test => {
     test.equal(h3node.isValidCell([0x3fffffff, 0x8528347]), true, 'Integer H3 index is considered an index');
     test.equal(
         h3node.isValidCell([0x73fffffff, 0xff2834]), false,
@@ -156,9 +170,9 @@ exports['isValidCell_array'] = test => {
         'Array with an additional element is not valid'
     );
     test.done();
-};
+});
 
-exports['isValidCell_uint32array'] = test => {
+registerTest('isValidCell_uint32array', test => {
     test.equal(h3node.isValidCell(new Uint32Array([0x3fffffff, 0x8528347])), true, 'Integer H3 index is considered an index');
     test.equal(
         h3node.isValidCell(new Uint32Array([0x73fffffff, 0xff2834])), false,
@@ -170,9 +184,9 @@ exports['isValidCell_uint32array'] = test => {
         'Array with too many elements is not valid'
     );
     test.done();
-};
+});
 
-exports['isValidCell_invalidStrings'] = test => {
+registerTest('isValidCell_invalidStrings', test => {
   const validIndex = '8928308280fffff'
   const invalidStrings = [
     'zzz',
@@ -205,23 +219,23 @@ exports['isValidCell_invalidStrings'] = test => {
     'leading zeroes should match h3-js')
   test.equal(h3node.isValidCell(validIndex), true, 'canonical cell string remains valid')
 
-  test.done()
-}
+  test.done();
+});
 
-exports['invalidCellStringsThrowOutsideIsValidCell'] = test => {
+registerTest('invalidCellStringsThrowOutsideIsValidCell', test => {
   // h3-js returns sentinel/empty values for some malformed indexes. h3-node
   // intentionally treats those as caller errors, except for isValidCell.
   test.throws(() => h3node.getResolution('zzz'), 'getResolution should throw')
   test.throws(() => h3node.cellToLatLng('zzz'), 'cellToLatLng should throw')
   test.throws(() => h3node.gridDisk('zzz', 1), 'gridDisk should throw')
   test.throws(() => h3node.compactCells(['zzz']), 'compactCells should throw')
-  test.done()
-}
+  test.done();
+});
 
 // TODO: Write tests for isValidDirectedEdge and isValidVertex
 
 // Exercise the macro used to reading H3 index input from Node
-exports['cellToLatLng_array'] = test => {
+registerTest('cellToLatLng_array', test => {
     test.deepEqual(h3node.cellToLatLng([0x3fffffff, 0x8528347]), h3node.cellToLatLng('85283473fffffff'), 'Integer H3 index is considered an index');
     test.deepEqual(h3node.cellToLatLng([0x73fffffff, 0xff2834]), h3node.cellToLatLng('ff28343fffffff'),
         'Integer with incorrect bits handled consistently'
@@ -233,9 +247,9 @@ exports['cellToLatLng_array'] = test => {
         'Array with an additional element is not valid'
     );
     test.done();
-};
+});
 
-exports['cellToLatLng_uint32array'] = test => {
+registerTest('cellToLatLng_uint32array', test => {
     test.deepEqual(h3node.cellToLatLng(new Uint32Array([0x3fffffff, 0x8528347])), h3node.cellToLatLng('85283473fffffff'), 'Integer H3 index is considered an index');
     test.deepEqual(h3node.cellToLatLng(new Uint32Array([0x73fffffff, 0xff2834])), h3node.cellToLatLng('ff28343fffffff'),
         'Integer with incorrect bits handled consistently'
@@ -246,9 +260,9 @@ exports['cellToLatLng_uint32array'] = test => {
         'Array with too many elements is not valid'
     );
     test.done();
-};
+});
 
-exports['cellToBoundary_geoJson'] = test => {
+registerTest('cellToBoundary_geoJson', test => {
   const index = '8928342e20fffff'
   const boundary = h3node.cellToBoundary(index)
   const geoJsonBoundary = h3node.cellToBoundary(index, true)
@@ -258,10 +272,10 @@ exports['cellToBoundary_geoJson'] = test => {
   test.deepEqual(geoJsonBoundary[0], [boundary[0][1], boundary[0][0]], 'GeoJSON boundary should use [lng, lat] order')
   test.deepEqual(geoJsonBoundary[geoJsonBoundary.length - 1], geoJsonBoundary[0], 'GeoJSON boundary should close the ring')
   test.ok(almostEqual(geoJsonBoundary, jsGeoJsonBoundary), 'GeoJSON boundary should match h3-js')
-  test.done()
-}
+  test.done();
+});
 
-exports['cellsToMultiPolygon_geoJson'] = test => {
+registerTest('cellsToMultiPolygon_geoJson', test => {
   const index = '8928342e20fffff'
   const cells = h3node.gridDisk(index, 1).sort()
   const multiPolygon = h3node.cellsToMultiPolygon(cells)
@@ -277,10 +291,10 @@ exports['cellsToMultiPolygon_geoJson'] = test => {
     return ring.every(([lng, lat]) => Math.abs(lng) <= 180 && Math.abs(lat) <= 90)
   })), 'GeoJSON MultiPolygon coordinates should be degrees in [lng, lat] order')
 
-  test.done()
-}
+  test.done();
+});
 
-exports['directedEdgeToBoundary_geoJson'] = test => {
+registerTest('directedEdgeToBoundary_geoJson', test => {
   const index = '8928342e20fffff'
   const destination = h3node.gridDisk(index, 1).find(neighbor => neighbor !== index)
   const edge = h3node.cellsToDirectedEdge(index, destination)
@@ -291,10 +305,10 @@ exports['directedEdgeToBoundary_geoJson'] = test => {
   test.equal(geoJsonBoundary.length, boundary.length, 'GeoJSON edge boundary should preserve vertex count')
   test.deepEqual(geoJsonBoundary.map(([lng, lat]) => [lat, lng]), boundary, 'GeoJSON edge boundary should use [lng, lat] order')
   test.ok(almostEqual(geoJsonBoundary, jsGeoJsonBoundary), 'GeoJSON edge boundary should match h3-js')
-  test.done()
-}
+  test.done();
+});
 
-exports['cellsToMultiPolygon_roundTrip'] = test => {
+registerTest('cellsToMultiPolygon_roundTrip', test => {
   const index = h3node.latLngToCell(37.77, -122.43, 9)
   const cells = h3node.gridDisk(index, 2).sort()
   const defaultRing = h3node.cellsToMultiPolygon(cells)[0][0]
@@ -302,8 +316,8 @@ exports['cellsToMultiPolygon_roundTrip'] = test => {
 
   test.deepEqual(h3node.polygonToCells(defaultRing, 9).sort(), cells, 'default MultiPolygon output should round-trip through polygonToCells')
   test.deepEqual(h3node.polygonToCells(geoJsonRing, 9, true).sort(), cells, 'GeoJSON MultiPolygon output should round-trip through polygonToCells')
-  test.done()
-}
+  test.done();
+});
 
 exportTest('latLngToCell', () => [...randCoords(), 9], simpleTest)
 exportTest('cellToLatLng', () => [h3node.latLngToCell(...randCoords(), 9)], almostEqualTest)
@@ -579,7 +593,7 @@ exportTest('polygonToCellsExperimental', () => [
 
 // constructCell is the inverse of getResolution/getBaseCellNumber/getIndexDigit,
 // so exercise it as a round-trip.
-exports['constructCell'] = test => {
+registerTest('constructCell', test => {
   const res = Math.floor(2 + Math.random() * 13)
   const cell = h3node.latLngToCell(...randCoords(), res)
   const baseCellNumber = h3node.getBaseCellNumber(cell)
@@ -588,33 +602,33 @@ exports['constructCell'] = test => {
   test.equal(h3node.constructCell(baseCellNumber, digits, res), cell, 'constructCell reconstructs the cell')
   test.equal(h3node.constructCell(baseCellNumber, digits, res), h3js.constructCell(baseCellNumber, digits, res), 'constructCell matches h3-js')
   test.equal(h3node.constructCell(baseCellNumber, digits), cell, 'constructCell infers res from digits length')
-  test.done()
-}
+  test.done();
+});
 
 // isValidVertex / isValidIndex should report false (not throw) for unparseable input
-exports['isValidVertex_invalid'] = test => {
+registerTest('isValidVertex_invalid', test => {
   test.equal(h3node.isValidVertex('zzzzzzzzzzzzzzzz'), false, 'non-hex string is not a valid vertex')
   test.equal(h3node.isValidVertex([]), false, 'empty array is not a valid vertex')
   test.equal(h3node.isValidVertex(12345), false, 'bare number is not a valid vertex')
-  test.done()
-}
-exports['isValidIndex_invalid'] = test => {
+  test.done();
+});
+registerTest('isValidIndex_invalid', test => {
   test.equal(h3node.isValidIndex('zzzzzzzzzzzzzzzz'), false, 'non-hex string is not a valid index')
   test.equal(h3node.isValidIndex([]), false, 'empty array is not a valid index')
   test.equal(h3node.isValidIndex(12345), false, 'bare number is not a valid index')
-  test.done()
-}
+  test.done();
+});
 
 // h3IndexToSplitLong / splitLongToH3Index are pure-JS helpers (not N-API
 // bindings), but they are part of the h3-js API surface we mirror
 exportTest('h3IndexToSplitLong', () => [h3node.latLngToCell(...randCoords(), 9)], simpleTest)
 exportTest('splitLongToH3Index', () => h3node.h3IndexToSplitLong(h3node.latLngToCell(...randCoords(), 9)), simpleTest)
-exports['h3IndexToSplitLong_invalid'] = test => {
+registerTest('h3IndexToSplitLong_invalid', test => {
   test.deepEqual(h3node.h3IndexToSplitLong('zzzzzzzzzzzzzzzz'), [0, 0], 'non-hex string is [0, 0]')
   test.deepEqual(h3node.h3IndexToSplitLong(12345), [0, 0], 'bare number is [0, 0]')
   test.deepEqual(h3node.h3IndexToSplitLong([1, 2]), [1, 2], 'split longs pass through')
-  test.done()
-}
+  test.done();
+});
 
 exportBenchmark('latLngToCell', () => [...randCoords(), 9])
 exportBenchmark('cellToLatLng', () => [h3node.latLngToCell(...randCoords(), 9)])
