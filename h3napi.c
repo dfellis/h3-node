@@ -599,11 +599,18 @@ napiFn(getIcosahedronFaces) {
   int* out = calloc(max, sizeof(int));
   getIcosahedronFaces(h3, out);
 
-  napiFixedArray(result, max);
+  napiVarArray(result) {
+    free(out);
+    return NULL;
+  }
+  int arrayIndex = 0;
   for (int i = 0; i < max; i++) {
-    if (out[i] >= 0) {
-      napiSetValue(result, i, int32, out[i], temp);
+    if (out[i] < 0) continue;
+    napiSetValue(result, arrayIndex, int32, out[i], temp) {
+      free(out);
+      return NULL;
     }
+    arrayIndex++;
   }
   free(out);
 
