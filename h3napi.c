@@ -1,10 +1,29 @@
 #include <node_api.h>
 #include <limits.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include "h3/src/h3lib/include/h3api.h"
 #include "h3api.h"
+
+// Binding-level error codes, mirroring h3-js (h3-js/lib/errors.js): it
+// attaches a numeric code to every error it throws — H3Error enum values
+// (h3api.h) for C library errors, plus these binding-level values for
+// errors raised in JS before/instead of the C call.
+#define E_UNKNOWN_UNIT 1000
+#define E_ARRAY_LENGTH 1001
+
+// h3-js sets err.code to a number, but napi_throw_error can only set a
+// string code. Build the error object manually so err.code is numeric.
+// (napi_create_error takes napi_value args since NAPI_VERSION 8, and a
+// NULL code is a supported no-op — verified against Node 18-26.)
+static void napiThrowErrCode(napi_env env, int32_t code, const char* message) {
+  napi_value errorObj, codeValue, messageValue;
+  napi_create_string_utf8(env, message, NAPI_AUTO_LENGTH, &messageValue);
+  napi_create_error(env, NULL, messageValue, &errorObj);
+  napi_create_int32(env, code, &codeValue);
+  napi_set_named_property(env, errorObj, "code", codeValue);
+  napi_throw(env, errorObj);
+}
 
 #define napiFn(N) napi_value N ## Napi(napi_env env, napi_callback_info info)
 
@@ -15,7 +34,7 @@
   napi_get_cb_info(env, info, &argc, argv, NULL, NULL);\
   \
   if (argc < N) {\
-    napi_throw_error(env, "EINVAL", "Too few arguments");\
+    napiThrowErrCode(env, E_DOMAIN, "Too few arguments");\
     return NULL;\
   }
 
@@ -26,7 +45,7 @@
   napi_get_cb_info(env, info, &argc, argv, NULL, NULL);\
   \
   if (argc < N) {\
-    napi_throw_error(env, "EINVAL", "Too few arguments");\
+    napiThrowErrCode(env, E_DOMAIN, "Too few arguments");\
     return NULL;\
   }
 
@@ -36,7 +55,7 @@
 #define napiGetArg(I, J, T, N) \
   T N;\
   if (napi_get_value_ ## J(env, argv[I], (T *) &N) != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Expected " #J " in arg " #I);\
+    napiThrowErrCode(env, E_DOMAIN, "Expected " #J " in arg " #I);\
     return NULL;\
   }
 
@@ -45,7 +64,7 @@
   size_t N ## Count;\
   \
   if (napi_get_value_string_utf8(env, argv[I], N, L, &N ## Count) != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Expected unit argument");\
+    napiThrowErrCode(env, E_DOMAIN, "Expected unit argument");\
     return NULL;\
   }
 
@@ -53,7 +72,7 @@
   T N;\
   napi_status napiToVar ## V ## N = napi_get_value_ ## J(env, V, &N);\
   if (napiToVar ## V ## N != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Could not get " #J " value from " #V);\
+    napiThrowErrCode(env, E_DOMAIN, "Could not get " #J " value from " #V);\
   }\
   if (napiToVar ## V ## N != napi_ok)
 
@@ -61,7 +80,7 @@
   napi_value N;\
   napi_status napiFromArray ## N = napi_get_element(env, A, I, &N);\
   if (napiFromArray ## N != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Could not get element from array at index " #I);\
+    napiThrowErrCode(env, E_DOMAIN, "Could not get element from array at index " #I);\
   }\
   if (napiFromArray ## N != napi_ok)
 
@@ -69,7 +88,7 @@
   uint32_t N;\
   napi_status napiArrayLen ## A ## N = napi_get_array_length(env, A, &N);\
   if (napiArrayLen ## A ## N != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Did not receive a valid array");\
+    napiThrowErrCode(env, E_DOMAIN, "Did not receive a valid array");\
   }\
   if (napiArrayLen ## A ## N != napi_ok)
 
@@ -91,28 +110,28 @@
     napiThrowErr(O ## Err, O ## err);\
   } else if (napi_get_typedarray_info(env, O ## Arr, &O ## Type, &O ## Length, &O ## Data, NULL, NULL) == napi_ok) {\
     if (O ## Type != napi_uint32_array || O ## Length != 2) {\
-      napi_throw_error(env, "EINVAL", "Invalid Uint32Array H3 index in arg " #I);\
+      napiThrowErrCode(env, E_DOMAIN, "Invalid Uint32Array H3 index in arg " #I);\
       return NULL;\
     }\
     O = ((H3Index)*(((uint32_t*)O ## Data) + 1) << 32) | *((uint32_t*)O ## Data);\
   } else if (napi_get_array_length(env, O ## Arr, &O ## ArrSz) == napi_ok) {\
     if (O ## ArrSz != 2) {\
-      napi_throw_error(env, "EINVAL", "Invalid length array H3 index in arg " #I);\
+      napiThrowErrCode(env, E_DOMAIN, "Invalid length array H3 index in arg " #I);\
       return NULL;\
     }\
     napi_value O ## Val0, O ## Val1;\
     if (napi_get_element(env, O ## Arr, 0, &O ## Val0) != napi_ok || napi_get_element(env, O ## Arr, 1, &O ## Val1) != napi_ok) {\
-      napi_throw_error(env, "EINVAL", "Invalid array H3 index in arg " #I);\
+      napiThrowErrCode(env, E_DOMAIN, "Invalid array H3 index in arg " #I);\
       return NULL;\
     }\
     uint32_t O ## Part0, O ## Part1;\
     if (napi_get_value_uint32(env, O ## Val0, &O ## Part0) != napi_ok || napi_get_value_uint32(env, O ## Val1, &O ## Part1) != napi_ok) {\
-      napi_throw_error(env, "EINVAL", "Invalid integer array H3 index in arg " #I);\
+      napiThrowErrCode(env, E_DOMAIN, "Invalid integer array H3 index in arg " #I);\
       return NULL;\
     }\
     O = ((H3Index)(O ## Part1) << 32) | (O ## Part0);\
   } else {\
-    napi_throw_error(env, "EINVAL", "Expected string or array H3 index in arg " #I);\
+    napiThrowErrCode(env, E_DOMAIN, "Expected string or array H3 index in arg " #I);\
     return NULL;\
   }
 
@@ -122,7 +141,7 @@
   size_t O ## StrCount;\
   napi_status napiGetH3Index ## I = napi_get_value_string_utf8(env, I, O ## Str, 17, &O ## StrCount);\
   if (napiGetH3Index ## I != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Expected string h3 index in arg " #I);\
+    napiThrowErrCode(env, E_DOMAIN, "Expected string h3 index in arg " #I);\
   }\
   H3Error O ## err = stringToH3(O ## Str, &O);\
   napiThrowErr(O ## Err, O ## err);\
@@ -135,7 +154,7 @@
 
 #define napiCheckArraySize(S) \
   if ((uint64_t) (S) > MAX_JS_ARRAY_LENGTH) { \
-    napi_throw_error(env, "ENOMEM", "Array length exceeds maximum"); \
+    napiThrowErrCode(env, E_ARRAY_LENGTH, "Array length exceeds maximum"); \
     return NULL; \
   }
 
@@ -147,13 +166,11 @@
 #define napiGetResArg(I, N) \
   double N ## Double;\
   if (napi_get_value_double(env, argv[I], &N ## Double) != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Expected number in arg " #I);\
+    napiThrowErrCode(env, E_DOMAIN, "Expected number in arg " #I);\
     return NULL;\
   }\
   if (!(N ## Double >= 0 && N ## Double <= 15) || (int64_t) N ## Double != N ## Double) {\
-    char N ## ResCode[5];\
-    snprintf(N ## ResCode, 5, "%d", E_RES_DOMAIN);\
-    napi_throw_error(env, N ## ResCode, "Resolution must be an integer between 0 and 15");\
+    napiThrowErrCode(env, E_RES_DOMAIN, "Resolution must be an integer between 0 and 15");\
     return NULL;\
   }\
   int N = (int) N ## Double
@@ -165,11 +182,11 @@
   char N[L + 1];\
   size_t N ## UnitLen;\
   if (napi_get_value_string_utf8(env, argv[I], N, L + 1, &N ## UnitLen) != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Expected string in arg " #I);\
+    napiThrowErrCode(env, E_DOMAIN, "Expected string in arg " #I);\
     return NULL;\
   }\
   if (N ## UnitLen == 0 || N ## UnitLen > L) {\
-    napi_throw_error(env, "EINVAL", "Unknown unit provided");\
+    napiThrowErrCode(env, E_UNKNOWN_UNIT, "Unknown unit provided");\
     return NULL;\
   }
 
@@ -177,7 +194,7 @@
   napi_value V;\
   napi_status napiFixedArray ## V = napi_create_array_with_length(env, L, &V);\
   if (napiFixedArray ## V != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not create fixed length array");\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create fixed length array");\
     return NULL;\
   }\
   if (napiFixedArray ## V != napi_ok)
@@ -186,14 +203,14 @@
   napi_value V;\
   napi_status napiVarArray ## V = napi_create_array(env, &V);\
   if (napiVarArray ## V != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not create variable array");\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create variable array");\
   }\
   if (napiVarArray ## V != napi_ok)
 
 #define napiSetNapiValue(A, I, N) \
   napi_status napiSetNapiValue ## N = napi_set_element(env, A, I, N);\
   if (napiSetNapiValue ## N != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not store " #N " in array");\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not store " #N " in array");\
   }\
   if (napiSetNapiValue ## N != napi_ok)
 
@@ -201,16 +218,14 @@
   napi_value N;\
   \
   if (napi_create_ ## J(env, V, &N) != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not write " #N #J);\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not write " #N #J);\
     return NULL;\
   }\
   napiSetNapiValue(A, I, N)
 
 #define napiThrowErr(N, E) \
   if (E) { \
-    char N ## code[5]; \
-    snprintf(N ## code, 5, "%d", E); \
-    napi_throw_error(env, N ## code, ""); \
+    napiThrowErrCode(env, (int32_t) (E), #N " failed"); \
     return NULL;\
   }
 
@@ -220,7 +235,7 @@
   napi_value O;\
   napi_status napiNapiH3Index ## V = napi_create_string_utf8(env, V ## String, 15, &O);\
   if (napiNapiH3Index ## V != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not write H3 string");\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not write H3 string");\
   }\
   if (napiNapiH3Index ## V != napi_ok)
 
@@ -233,7 +248,7 @@
   napi_value O;\
   napi_status napiNapiH3IndexFull ## V = napi_create_string_utf8(env, V ## String, strlen(V ## String), &O);\
   if (napiNapiH3IndexFull ## V != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not write H3 string");\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not write H3 string");\
   }\
   if (napiNapiH3IndexFull ## V != napi_ok)
 
@@ -243,28 +258,28 @@
   napi_value O;\
   napi_status napiNapiUnidirectionalEdge ## V = napi_create_string_utf8(env, V ## String, 16, &O);\
   if (napiNapiUnidirectionalEdge ## V != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not write H3 string");\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not write H3 string");\
   }\
   if (napiNapiUnidirectionalEdge ## V != napi_ok)
 
 #define napiNapiValue(V, T, N) \
   napi_value N;\
   if (napi_create_ ## T(env, V, &N) != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not create " #N);\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create " #N);\
     return NULL;\
   }
 
 #define napiNapiBool(V, N) \
   napi_value N;\
   if (napi_get_boolean(env, V, &N) != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not create boolean");\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create boolean");\
     return NULL;\
   }
 
 #define napiObject(O) \
   napi_value O;\
   if (napi_create_object(env, &O) != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not create object");\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create object");\
     return NULL;\
   }
 
@@ -274,7 +289,7 @@
 #define napiStoreInObject(O, N, T, V) \
   napi_value N;\
   if (napi_create_ ## T(env, V, &N) != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not create " #N);\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create " #N);\
     return NULL;\
   }\
   napiStoreNapiInObject(O, #N, N);
@@ -282,11 +297,11 @@
 #define napiGetFromObject(O, N, T, R) \
   napi_value N;\
   if (napi_get_named_property(env, O, #N, &N) != napi_ok) {\
-    napi_throw_error(env, "ENOSPC", "Could not retrieve " #N);\
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not retrieve " #N);\
     return NULL;\
   }\
   if (napi_get_value_ ## T(env, N, R) != napi_ok) {\
-    napi_throw_error(env, "EINVAL", "Expected " #N " in object");\
+    napiThrowErrCode(env, E_DOMAIN, "Expected " #N " in object");\
     return NULL;\
   }
 
@@ -434,12 +449,12 @@ napiFn(cellToBoundary) {
   napiGetH3IndexArg(0, h3);
   napiGetNapiArg(1, formatAsGeoJsonObj);
   if (napi_coerce_to_bool(env, formatAsGeoJsonObj, &formatAsGeoJsonObj) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Somehow cannot coerce a boolean?");
+    napiThrowErrCode(env, E_DOMAIN, "Somehow cannot coerce a boolean?");
     return NULL;
   }
   bool formatAsGeoJson;
   if (napi_get_value_bool(env, formatAsGeoJsonObj, &formatAsGeoJson) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Somehow cannot extract boolean from JS object");
+    napiThrowErrCode(env, E_DOMAIN, "Somehow cannot extract boolean from JS object");
     return NULL;
   }
 
@@ -648,15 +663,13 @@ napiFn(getIcosahedronFaces) {
 
   int* out = calloc(max, sizeof(int));
   if (out == NULL) {
-    napi_throw_error(env, "ENOMEM", "Could not allocate icosahedron faces");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate icosahedron faces");
     return NULL;
   }
   H3Error facesErr = getIcosahedronFaces(h3, out);
   if (facesErr) {
     free(out);
-    char facesCode[5];
-    snprintf(facesCode, 5, "%d", facesErr);
-    napi_throw_error(env, facesCode, "getIcosahedronFaces failed");
+    napiThrowErrCode(env, (int32_t) facesErr, "getIcosahedronFaces failed");
     return NULL;
   }
 
@@ -740,15 +753,13 @@ napiFn(gridDisk) {
 
   H3Index* gridDiskOut = calloc(maxSize, sizeof(H3Index));
   if (gridDiskOut == NULL) {
-    napi_throw_error(env, "ENOMEM", "Could not allocate grid disk");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate grid disk");
     return NULL;
   }
   err = gridDisk(h3, k, gridDiskOut);
   if (err) {
     free(gridDiskOut);
-    char gridDiskCode[5];
-    snprintf(gridDiskCode, 5, "%d", err);
-    napi_throw_error(env, gridDiskCode, "gridDisk failed");
+    napiThrowErrCode(env, (int32_t) err, "gridDisk failed");
     return NULL;
   }
 
@@ -793,16 +804,14 @@ napiFn(gridDiskDistances) {
   if (gridDiskOut == NULL || distances == NULL) {
     free(gridDiskOut);
     free(distances);
-    napi_throw_error(env, "ENOMEM", "Could not allocate grid disk distances");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate grid disk distances");
     return NULL;
   }
   err = gridDiskDistances(h3, k, gridDiskOut, distances);
   if (err) {
     free(distances);
     free(gridDiskOut);
-    char gridDiskDistancesCode[5];
-    snprintf(gridDiskDistancesCode, 5, "%d", err);
-    napi_throw_error(env, gridDiskDistancesCode, "gridDiskDistances failed");
+    napiThrowErrCode(env, (int32_t) err, "gridDiskDistances failed");
     return NULL;
   }
 
@@ -828,7 +837,7 @@ napiFn(gridDiskDistances) {
   if (arrayIndices == NULL) {
     free(distances);
     free(gridDiskOut);
-    napi_throw_error(env, "ENOMEM", "Could not allocate ring indices");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate ring indices");
     return NULL;
   }
 
@@ -878,22 +887,20 @@ napiFn(gridRingUnsafe) {
   H3Index* gridRingUnsafeOut = NULL;
   if (k >= 0) {
     if (maxSize > INT32_MAX) {
-      napi_throw_error(env, "ENOMEM", "Array length exceeds maximum");
+      napiThrowErrCode(env, E_ARRAY_LENGTH, "Array length exceeds maximum");
       return NULL;
     }
     gridRingUnsafeOut = calloc(maxSize, sizeof(H3Index));
     if (gridRingUnsafeOut == NULL) {
-      napi_throw_error(env, "ENOMEM", "Could not allocate grid ring");
+      napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate grid ring");
       return NULL;
     }
   }
   H3Error err = gridRingUnsafe(h3, k, gridRingUnsafeOut);
   if (err) {
     free(gridRingUnsafeOut);
-    char gridRingUnsafeCode[5];
-    snprintf(gridRingUnsafeCode, 5, "%d", err);
     // Keep the pentagon message: the test suite matches it by text
-    napi_throw_error(env, gridRingUnsafeCode,
+    napiThrowErrCode(env, (int32_t) err,
       (err == E_PENTAGON) ? "Pentagon encountered in range of ring" : "gridRingUnsafe failed");
     return NULL;
   }
@@ -952,17 +959,17 @@ napiFn(cellToLocalIj) {
     case 0:
       break;
     case 1:
-      napi_throw_error(env, "EINVAL", "Incompatible origin and index");
+      napiThrowErrCode(env, (int32_t) errorCode, "Incompatible origin and index");
       return NULL;
     case 2:
     default:
-      napi_throw_error(env, "EINVAL", "Local IJ coordinates undefined for this origin and index"
+      napiThrowErrCode(env, (int32_t) errorCode, "Local IJ coordinates undefined for this origin and index"
         " pair. The index may be too far from the origin.");
       return NULL;
     case 3:
     case 4:
     case 5:
-      napi_throw_error(env, "EINVAL", "Encountered possible pentagon distortion.");
+      napiThrowErrCode(env, (int32_t) errorCode, "Encountered possible pentagon distortion.");
       return NULL;
   }
   napiObject(result);
@@ -982,7 +989,7 @@ napiFn(localIjToCell) {
   napiGetFromObject(coords, j, int32, &ij.j);
   int errorCode = localIjToCell(origin, &ij, 0, &h3);
   if (errorCode != 0) {
-    napi_throw_error(env, "EINVAL", "Index not defined for this origin and IJ coordinate pair. "
+    napiThrowErrCode(env, (int32_t) errorCode, "Index not defined for this origin and IJ coordinate pair. "
       "IJ coordinates may be too far from origin, or a pentagon distortion was encountered.");
     return NULL;
   }
@@ -1001,14 +1008,14 @@ napiFn(gridPathCells) {
   napiThrowErr(gridPathCells, err);
 
   if (numHexes <= 0) {
-    napi_throw_error(env, "EINVAL", "Line cannot be calculated");
+    napiThrowErrCode(env, E_FAILED, "Line cannot be calculated");
     return NULL;
   }
 
   H3Index* line = calloc(numHexes, sizeof(H3Index));
   int errorCode = gridPathCells(origin, destination, line);
   if (errorCode != 0) {
-    napi_throw_error(env, "EINVAL", "Line cannot be calculated");
+    napiThrowErrCode(env, (int32_t) errorCode, "Line cannot be calculated");
     free(line);
     return NULL;
   }
@@ -1049,7 +1056,7 @@ napiFn(gridRing) {
 
   H3Index *gridRingOut = calloc(maxSize, sizeof(H3Index));
   if (gridRingOut == NULL) {
-    napi_throw_error(env, "ENOMEM", "Could not allocate gridRing output");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate gridRing output");
     return NULL;
   }
   err = gridRing(h3, k, gridRingOut);
@@ -1108,9 +1115,7 @@ napiFn(cellToChildren) {
   // invalid cells, which is a latent h3-js bug; h3-node documents
   // throw-on-bad-input instead.
   if (!isValidCell(h3)) {
-    char code[5];
-    snprintf(code, 5, "%d", E_CELL_INVALID);
-    napi_throw_error(env, code, "Cell is invalid");
+    napiThrowErrCode(env, E_CELL_INVALID, "Cell is invalid");
     return NULL;
   }
 
@@ -1121,15 +1126,13 @@ napiFn(cellToChildren) {
 
   H3Index* children = calloc(maxSize, sizeof(H3Index));
   if (children == NULL) {
-    napi_throw_error(env, "ENOMEM", "Could not allocate children");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate children");
     return NULL;
   }
   err = cellToChildren(h3, res, children);
   if (err) {
     free(children);
-    char cellToChildrenCode[5];
-    snprintf(cellToChildrenCode, 5, "%d", err);
-    napi_throw_error(env, cellToChildrenCode, "cellToChildren failed");
+    napiThrowErrCode(env, (int32_t) err, "cellToChildren failed");
     return NULL;
   }
 
@@ -1175,7 +1178,7 @@ napiFn(compactCells) {
   napiGetNapiArg(0, h3IndexArrayObj);
   uint32_t arrayLen;
   if (napi_get_array_length(env, h3IndexArrayObj, &arrayLen) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected an array of h3 indexes");
+    napiThrowErrCode(env, E_DOMAIN, "Expected an array of h3 indexes");
     return NULL;
   }
   H3Index* uncompactedArray = calloc(arrayLen, sizeof(H3Index));
@@ -1183,7 +1186,7 @@ napiFn(compactCells) {
   if (uncompactedArray == NULL || compactedArray == NULL) {
     free(uncompactedArray);
     free(compactedArray);
-    napi_throw_error(env, "ENOMEM", "Could not allocate cell set");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate cell set");
     return NULL;
   }
   for (uint32_t i = 0; i < arrayLen; i++) {
@@ -1201,7 +1204,7 @@ napiFn(compactCells) {
   }
   int errorCode = compactCells(uncompactedArray, compactedArray, arrayLen);
   if (errorCode != 0) {
-    napi_throw_error(env, "EINVAL", "Unexpected non-hexagon in provided set");
+    napiThrowErrCode(env, (int32_t) errorCode, "Unexpected non-hexagon in provided set");
     free(compactedArray);
     free(uncompactedArray);
     return NULL;
@@ -1239,12 +1242,12 @@ napiFn(uncompactCells) {
   napiGetResArg(1, res);
   uint32_t arrayLen;
   if (napi_get_array_length(env, h3IndexArrayObj, &arrayLen) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected an array of h3 indexes");
+    napiThrowErrCode(env, E_DOMAIN, "Expected an array of h3 indexes");
     return NULL;
   }
   H3Index* compactedArray = calloc(arrayLen, sizeof(H3Index));
   if (compactedArray == NULL) {
-    napi_throw_error(env, "ENOMEM", "Could not allocate cell set");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate cell set");
     return NULL;
   }
   for (uint32_t i = 0; i < arrayLen; i++) {
@@ -1262,9 +1265,7 @@ napiFn(uncompactCells) {
   H3Error err = uncompactCellsSize(compactedArray, arrayLen, res, &maxSize);
   if (err) {
     free(compactedArray);
-    char uncompactCellsSizeCode[5];
-    snprintf(uncompactCellsSizeCode, 5, "%d", err);
-    napi_throw_error(env, uncompactCellsSizeCode, "uncompactCellsSize failed");
+    napiThrowErrCode(env, (int32_t) err, "uncompactCellsSize failed");
     return NULL;
   }
   napiCheckArraySize(maxSize);
@@ -1272,12 +1273,12 @@ napiFn(uncompactCells) {
   H3Index* uncompactedArray = calloc(maxSize, sizeof(H3Index));
   if (uncompactedArray == NULL) {
     free(compactedArray);
-    napi_throw_error(env, "ENOMEM", "Could not allocate uncompacted cells");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate uncompacted cells");
     return NULL;
   }
   int errorCode = uncompactCells(compactedArray, arrayLen, uncompactedArray, maxSize, res);
   if (errorCode != 0) {
-    napi_throw_error(env, "EINVAL", "Unexpected non-hexagon in provided set");
+    napiThrowErrCode(env, (int32_t) errorCode, "Unexpected non-hexagon in provided set");
     free(compactedArray);
     free(uncompactedArray);
     return NULL;
@@ -1317,9 +1318,7 @@ napiFn(cellToChildrenSize) {
   // Same rationale as cellToChildren: the C call only range-checks the
   // resolution, so an invalid cell would yield a plausible-but-wrong size.
   if (!isValidCell(h3)) {
-    char code[5];
-    snprintf(code, 5, "%d", E_CELL_INVALID);
-    napi_throw_error(env, code, "Cell is invalid");
+    napiThrowErrCode(env, E_CELL_INVALID, "Cell is invalid");
     return NULL;
   }
 
@@ -1368,14 +1367,14 @@ napiFn(constructCell) {
 
   uint32_t digitsLen;
   if (napi_get_array_length(env, digitsArr, &digitsLen) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected an array of digits");
+    napiThrowErrCode(env, E_DOMAIN, "Expected an array of digits");
     return NULL;
   }
 
   int res;
   if (argc >= 3) {
     if (napi_get_value_int32(env, argv[2], &res) != napi_ok) {
-      napi_throw_error(env, "EINVAL", "Expected an integer resolution");
+      napiThrowErrCode(env, E_DOMAIN, "Expected an integer resolution");
       return NULL;
     }
   } else {
@@ -1383,13 +1382,13 @@ napiFn(constructCell) {
   }
 
   if (res != (int)digitsLen) {
-    napi_throw_error(env, "EINVAL", "digits length must equal res");
+    napiThrowErrCode(env, E_DOMAIN, "digits length must equal res");
     return NULL;
   }
 
   int *digits = calloc(digitsLen, sizeof(int));
   if (digits == NULL) {
-    napi_throw_error(env, "ENOMEM", "Could not allocate digits");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate digits");
     return NULL;
   }
   for (uint32_t i = 0; i < digitsLen; i++) {
@@ -1397,7 +1396,7 @@ napiFn(constructCell) {
     if (napi_get_element(env, digitsArr, i, &d) != napi_ok ||
         napi_get_value_int32(env, d, &digits[i]) != napi_ok) {
       free(digits);
-      napi_throw_error(env, "EINVAL", "Expected integer digits");
+      napiThrowErrCode(env, E_DOMAIN, "Expected integer digits");
       return NULL;
     }
   }
@@ -1419,7 +1418,7 @@ napiFn(constructCell) {
 bool polygonArrayToGeofence(napi_env env, GeoLoop* geofence, napi_value polygonArray, bool isGeoJson) {
   uint32_t arrayLength;
   if (napi_get_array_length(env, polygonArray, &arrayLength) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
+    napiThrowErrCode(env, E_DOMAIN, "Could not read length of geofence array");
     // Sorta-useless calloc to make sure error-handling 'free' below always works
     geofence->verts = calloc(1, sizeof(LatLng));
     return false;
@@ -1465,39 +1464,39 @@ napiFn(polygonToCells) {
   napiGetResArg(1, res);
   napi_value isGeoJsonObj;
   if (napi_coerce_to_bool(env, argv[2], &isGeoJsonObj) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Somehow cannot coerce a boolean?");
+    napiThrowErrCode(env, E_DOMAIN, "Somehow cannot coerce a boolean?");
     return NULL;
   }
   bool isGeoJson;
   if (napi_get_value_bool(env, isGeoJsonObj, &isGeoJson) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Somehow cannot extract boolean from JS object");
+    napiThrowErrCode(env, E_DOMAIN, "Somehow cannot extract boolean from JS object");
     return NULL;
   }
   napi_valuetype typepoke;
   if (napi_typeof(env, geofenceArrayObj, &typepoke) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "No geofence array provided?");
+    napiThrowErrCode(env, E_DOMAIN, "No geofence array provided?");
     return NULL;
   }
   if (typepoke != napi_object) {
-    napi_throw_error(env, "EINVAL", "Non-array value provided as geofence array.");
+    napiThrowErrCode(env, E_DOMAIN, "Non-array value provided as geofence array.");
     return NULL;
   }
   uint32_t arrayLength;
   if (napi_get_array_length(env, geofenceArrayObj, &arrayLength) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
+    napiThrowErrCode(env, E_DOMAIN, "Could not read length of geofence array");
     return NULL;
   }
   napiVarArray(result);
   if (arrayLength == 0) return result;
   napiFromArray(geofenceArrayObj, 0, firstInnerArray);
   if (napi_get_array_length(env, firstInnerArray, &arrayLength) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Could not read length of the first inner array");
+    napiThrowErrCode(env, E_DOMAIN, "Could not read length of the first inner array");
     return NULL;
   }
   if (arrayLength == 0) return result;
   napiFromArray(firstInnerArray, 0, nestingTest);
   if (napi_typeof(env, nestingTest, &typepoke) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "No geofence data provided?");
+    napiThrowErrCode(env, E_DOMAIN, "No geofence data provided?");
     return NULL;
   }
   GeoPolygon polygon = { 0 };
@@ -1511,7 +1510,7 @@ napiFn(polygonToCells) {
   } else {
     // Multiple polygon shapes, has holes
     if (napi_get_array_length(env, geofenceArrayObj, &arrayLength) != napi_ok) {
-      napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
+      napiThrowErrCode(env, E_DOMAIN, "Could not read length of geofence array");
       return NULL;
     }
     polygon.numHoles = arrayLength - 1;
@@ -1583,9 +1582,7 @@ napiFn(polygonToCells) {
       }
       free(polygon.holes);
     }
-    char maxPolygonToCellsSizeCode[5];
-    snprintf(maxPolygonToCellsSizeCode, 5, "%d", err);
-    napi_throw_error(env, maxPolygonToCellsSizeCode, "maxPolygonToCellsSize failed");
+    napiThrowErrCode(env, (int32_t) err, "maxPolygonToCellsSize failed");
     return NULL;
   }
   napiCheckArraySize(maxSize);
@@ -1603,7 +1600,7 @@ napiFn(polygonToCells) {
       }
       free(polygon.holes);
     }
-    napi_throw_error(env, "ENOMEM", "Could not allocate polygon fill");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate polygon fill");
     return NULL;
   }
   err = polygonToCells(&polygon, res, 0, fill);
@@ -1620,9 +1617,7 @@ napiFn(polygonToCells) {
       free(polygon.holes);
     }
     free(fill);
-    char polygonToCellsCode[5];
-    snprintf(polygonToCellsCode, 5, "%d", err);
-    napi_throw_error(env, polygonToCellsCode, "polygonToCells failed");
+    napiThrowErrCode(env, (int32_t) err, "polygonToCells failed");
     return NULL;
   }
 
@@ -1683,19 +1678,19 @@ napiFn(cellsToMultiPolygon) {
   napiGetNapiArg(0, h3SetArrayObj);
   napi_value formatAsGeoJsonObj;
   if (napi_coerce_to_bool(env, argv[1], &formatAsGeoJsonObj) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Somehow cannot coerce a boolean?");
+    napiThrowErrCode(env, E_DOMAIN, "Somehow cannot coerce a boolean?");
     return NULL;
   }
   bool formatAsGeoJson;
   if (napi_get_value_bool(env, formatAsGeoJsonObj, &formatAsGeoJson) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Somehow cannot extract boolean from JS object");
+    napiThrowErrCode(env, E_DOMAIN, "Somehow cannot extract boolean from JS object");
     return NULL;
   }
 
   napiArrayLen(h3SetArrayObj, h3SetLen);
   H3Index* h3Set = calloc(h3SetLen, sizeof(H3Index));
   if (h3Set == NULL) {
-    napi_throw_error(env, "ENOMEM", "Could not allocate cell set");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate cell set");
     return NULL;
   }
   for (uint32_t i = 0; i < h3SetLen; i++) {
@@ -1713,7 +1708,7 @@ napiFn(cellsToMultiPolygon) {
   LinkedGeoPolygon* lgp = calloc(1, sizeof(LinkedGeoPolygon));
   if (lgp == NULL) {
     free(h3Set);
-    napi_throw_error(env, "ENOMEM", "Could not allocate multipolygon");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate multipolygon");
     return NULL;
   }
   LinkedGeoPolygon* original = lgp; // For later deallocation needs
@@ -1721,9 +1716,7 @@ napiFn(cellsToMultiPolygon) {
   if (err) {
     free(original);
     free(h3Set);
-    char cellsToMultiPolygonCode[5];
-    snprintf(cellsToMultiPolygonCode, 5, "%d", err);
-    napi_throw_error(env, cellsToMultiPolygonCode, "cellsToMultiPolygon failed");
+    napiThrowErrCode(env, (int32_t) err, "cellsToMultiPolygon failed");
     return NULL;
   }
   
@@ -1860,31 +1853,31 @@ bool napiParsePolygon(napi_env env, napi_value geofenceArrayObj, bool isGeoJson,
 
   uint32_t arrayLength;
   if (napi_get_array_length(env, geofenceArrayObj, &arrayLength) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Could not read length of geofence array");
+    napiThrowErrCode(env, E_DOMAIN, "Could not read length of geofence array");
     return false;
   }
   if (arrayLength == 0) return true;
 
   napi_value firstInnerArray;
   if (napi_get_element(env, geofenceArrayObj, 0, &firstInnerArray) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Could not read the first inner array");
+    napiThrowErrCode(env, E_DOMAIN, "Could not read the first inner array");
     return false;
   }
   uint32_t innerLength;
   if (napi_get_array_length(env, firstInnerArray, &innerLength) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Could not read length of the first inner array");
+    napiThrowErrCode(env, E_DOMAIN, "Could not read length of the first inner array");
     return false;
   }
   if (innerLength == 0) return true;
 
   napi_value nestingTest;
   if (napi_get_element(env, firstInnerArray, 0, &nestingTest) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "No geofence data provided?");
+    napiThrowErrCode(env, E_DOMAIN, "No geofence data provided?");
     return false;
   }
   napi_valuetype typepoke;
   if (napi_typeof(env, nestingTest, &typepoke) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "No geofence data provided?");
+    napiThrowErrCode(env, E_DOMAIN, "No geofence data provided?");
     return false;
   }
 
@@ -1941,11 +1934,11 @@ napiFn(polygonToCellsExperimental) {
     } else if (strcmp(flagsStr, "containmentOverlappingBbox") == 0) {
       flags = 3;
     } else {
-      napi_throw_error(env, "EINVAL", "Unknown polygonToCellsExperimental flag");
+      napiThrowErrCode(env, E_OPTION_INVALID, "Unknown polygonToCellsExperimental flag");
       return NULL;
     }
   } else if (napi_get_value_uint32(env, argv[2], &flags) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Expected flags as a string or number");
+    napiThrowErrCode(env, E_DOMAIN, "Expected flags as a string or number");
     return NULL;
   }
 
@@ -1955,7 +1948,7 @@ napiFn(polygonToCellsExperimental) {
   if (argc >= 4) {
     if (napi_coerce_to_bool(env, argv[3], &isGeoJsonObj) != napi_ok ||
         napi_get_value_bool(env, isGeoJsonObj, &isGeoJson) != napi_ok) {
-      napi_throw_error(env, "EINVAL", "Expected a boolean isGeoJson flag");
+      napiThrowErrCode(env, E_DOMAIN, "Expected a boolean isGeoJson flag");
       return NULL;
     }
   } else {
@@ -1977,9 +1970,7 @@ napiFn(polygonToCellsExperimental) {
   H3Error err = maxPolygonToCellsSizeExperimental(&polygon, res, flags, &maxSize);
   if (err) {
     freeGeoPolygon(&polygon);
-    char code[5];
-    snprintf(code, 5, "%d", err);
-    napi_throw_error(env, code, "maxPolygonToCellsSizeExperimental failed");
+    napiThrowErrCode(env, (int32_t) err, "maxPolygonToCellsSizeExperimental failed");
     return NULL;
   }
   napiCheckArraySize(maxSize);
@@ -1987,16 +1978,14 @@ napiFn(polygonToCellsExperimental) {
   H3Index *fill = calloc(maxSize, sizeof(H3Index));
   if (fill == NULL) {
     freeGeoPolygon(&polygon);
-    napi_throw_error(env, "ENOMEM", "Could not allocate polygon fill");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate polygon fill");
     return NULL;
   }
   err = polygonToCellsExperimental(&polygon, res, flags, maxSize, fill);
   freeGeoPolygon(&polygon);
   if (err) {
     free(fill);
-    char code[5];
-    snprintf(code, 5, "%d", err);
-    napi_throw_error(env, code, "polygonToCellsExperimental failed");
+    napiThrowErrCode(env, (int32_t) err, "polygonToCellsExperimental failed");
     return NULL;
   }
 
@@ -2140,12 +2129,12 @@ napiFn(directedEdgeToBoundary) {
   napiGetH3IndexArg(0, unidirectionalEdge);
   napiGetNapiArg(1, formatAsGeoJsonObj);
   if (napi_coerce_to_bool(env, formatAsGeoJsonObj, &formatAsGeoJsonObj) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Somehow cannot coerce a boolean?");
+    napiThrowErrCode(env, E_DOMAIN, "Somehow cannot coerce a boolean?");
     return NULL;
   }
   bool formatAsGeoJson;
   if (napi_get_value_bool(env, formatAsGeoJsonObj, &formatAsGeoJson) != napi_ok) {
-    napi_throw_error(env, "EINVAL", "Somehow cannot extract boolean from JS object");
+    napiThrowErrCode(env, E_DOMAIN, "Somehow cannot extract boolean from JS object");
     return NULL;
   }
 
@@ -2247,7 +2236,7 @@ napiFn(getHexagonEdgeLengthAvg) {
 
     return result;
   } else {
-    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    napiThrowErrCode(env, E_UNKNOWN_UNIT, "Unknown unit provided");
     return NULL;
   }
 }
@@ -2282,7 +2271,7 @@ napiFn(edgeLength) {
 
     return result;
   } else {
-    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    napiThrowErrCode(env, E_UNKNOWN_UNIT, "Unknown unit provided");
     return NULL;
   }
 }
@@ -2309,7 +2298,7 @@ napiFn(getHexagonAreaAvg) {
 
     return result;
   } else {
-    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    napiThrowErrCode(env, E_UNKNOWN_UNIT, "Unknown unit provided");
     return NULL;
   }
 }
@@ -2344,7 +2333,7 @@ napiFn(cellArea) {
 
     return result;
   } else {
-    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    napiThrowErrCode(env, E_UNKNOWN_UNIT, "Unknown unit provided");
     return NULL;
   }
 }
@@ -2356,35 +2345,35 @@ napiFn(greatCircleDistance) {
   napiGetUnitArg(2, 8, unit);
 
   napiFromArray(origArr, 0, origLatObj) {
-    napi_throw_error(env, "EINVAL", "No origin latitude");
+    napiThrowErrCode(env, E_DOMAIN, "No origin latitude");
     return NULL;
   }
   napiFromArray(origArr, 1, origLngObj) {
-    napi_throw_error(env, "EINVAL", "No origin longitude");
+    napiThrowErrCode(env, E_DOMAIN, "No origin longitude");
     return NULL;
   }
   napiFromArray(destArr, 0, destLatObj) {
-    napi_throw_error(env, "EINVAL", "No destination latitude");
+    napiThrowErrCode(env, E_DOMAIN, "No destination latitude");
     return NULL;
   }
   napiFromArray(destArr, 1, destLngObj) {
-    napi_throw_error(env, "EINVAL", "No destination longitude");
+    napiThrowErrCode(env, E_DOMAIN, "No destination longitude");
     return NULL;
   }
   napiToVar(origLatObj, double, double, origLat) {
-    napi_throw_error(env, "EINVAL", "Origin latitude is not a number");
+    napiThrowErrCode(env, E_DOMAIN, "Origin latitude is not a number");
     return NULL;
   }
   napiToVar(origLngObj, double, double, origLng) {
-    napi_throw_error(env, "EINVAL", "Origin longitude is not a number");
+    napiThrowErrCode(env, E_DOMAIN, "Origin longitude is not a number");
     return NULL;
   }
   napiToVar(destLatObj, double, double, destLat) {
-    napi_throw_error(env, "EINVAL", "Destination latitude is not a number");
+    napiThrowErrCode(env, E_DOMAIN, "Destination latitude is not a number");
     return NULL;
   }
   napiToVar(destLngObj, double, double, destLng) {
-    napi_throw_error(env, "EINVAL", "Destination longitude is not a number");
+    napiThrowErrCode(env, E_DOMAIN, "Destination longitude is not a number");
     return NULL;
   }
 
@@ -2412,7 +2401,7 @@ napiFn(greatCircleDistance) {
 
     return result;
   } else {
-    napi_throw_error(env, "EINVAL", "Unknown unit provided");
+    napiThrowErrCode(env, E_UNKNOWN_UNIT, "Unknown unit provided");
     return NULL;
   }
 }
@@ -2421,15 +2410,13 @@ napiFn(getRes0Cells) {
   int numHexes = res0CellCount();
   H3Index* res0Indexes = calloc(numHexes, sizeof(H3Index));
   if (res0Indexes == NULL) {
-    napi_throw_error(env, "ENOMEM", "Could not allocate res0 cells");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate res0 cells");
     return NULL;
   }
   H3Error err = getRes0Cells(res0Indexes);
   if (err) {
     free(res0Indexes);
-    char getRes0CellsCode[5];
-    snprintf(getRes0CellsCode, 5, "%d", err);
-    napi_throw_error(env, getRes0CellsCode, "getRes0Cells failed");
+    napiThrowErrCode(env, (int32_t) err, "getRes0Cells failed");
     return NULL;
   }
 
@@ -2459,15 +2446,13 @@ napiFn(getPentagons) {
 
   H3Index* pentagonIndexes = calloc(12, sizeof(H3Index));
   if (pentagonIndexes == NULL) {
-    napi_throw_error(env, "ENOMEM", "Could not allocate pentagons");
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate pentagons");
     return NULL;
   }
   H3Error err = getPentagons(res, pentagonIndexes);
   if (err) {
     free(pentagonIndexes);
-    char getPentagonsCode[5];
-    snprintf(getPentagonsCode, 5, "%d", err);
-    napi_throw_error(env, getPentagonsCode, "getPentagons failed");
+    napiThrowErrCode(env, (int32_t) err, "getPentagons failed");
     return NULL;
   }
 

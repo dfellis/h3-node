@@ -907,10 +907,12 @@ exportBenchmark('reverseDirectedEdge', () => {
 // contract parity. Before these guards, some of the inputs below crashed the
 // process (segmentation fault) or silently returned garbage.
 //
-// Error code conventions (consistent with the rest of this binding):
-//   - C-level H3 errors surface as the numeric H3 error code as a string
-//     (matching h3-js's err.code for the same inputs)
-//   - binding-level allocation guards use a POSIX-style code (ENOMEM)
+// Error code conventions (numeric, matching h3-js's err.code, which is
+// always a number):
+//   - C-level H3 errors surface as the numeric H3 error code (0-19, see
+//     h3api.h), the same value h3-js attaches for the same inputs
+//   - binding-level codes mirror h3-js's binding-level values: 1000 for an
+//     unknown unit, 1001 when an array length exceeds the maximum
 
 const VALID_CELL = '8928308280fffff'     // valid res-9 cell
 const CORRUPT_CELL = '8928308280ffffe'   // parseable, but not a valid cell
@@ -930,7 +932,9 @@ const throwsMatchingH3Js = (test, label, methodName, args) => {
   test.ok(nodeErr, `${label}: h3-node should throw`)
   test.ok(jsErr, `${label}: h3-js should throw`)
   if (nodeErr && jsErr) {
-    test.equal(String(nodeErr.code), String(jsErr.code),
+    // h3-js always sets a numeric err.code; h3-node must do the same.
+    test.equal(typeof nodeErr.code, 'number', `${label}: h3-node code should be a number`)
+    test.equal(nodeErr.code, jsErr.code,
       `${label}: h3-node code ${nodeErr.code} should match h3-js code ${jsErr.code}`)
   }
 }
@@ -939,17 +943,17 @@ registerTest('allocationGuards', test => {
   // cellToChildren of a res-0 cell to res 15 requests ~4.7e12 cells (~38 TB).
   // Before: the calloc failed and the C library wrote through the NULL pointer.
   const res0Cell = h3node.getRes0Cells()[0]
-  assert.throws(() => h3node.cellToChildren(res0Cell, 15), { code: 'ENOMEM' })
+  assert.throws(() => h3node.cellToChildren(res0Cell, 15), { code: 1001 })
   // maxGridDiskSize clamps huge k to the res-15 cell count, which still
   // exceeds the JavaScript array limit
-  assert.throws(() => h3node.gridDisk(VALID_CELL, 2147483647), { code: 'ENOMEM' })
-  assert.throws(() => h3node.gridDiskDistances(VALID_CELL, 2147483647), { code: 'ENOMEM' })
+  assert.throws(() => h3node.gridDisk(VALID_CELL, 2147483647), { code: 1001 })
+  assert.throws(() => h3node.gridDiskDistances(VALID_CELL, 2147483647), { code: 1001 })
   // 6 * k overflows a 32-bit int for large k, and the C loop indexes its
   // output with an int
-  assert.throws(() => h3node.gridRingUnsafe(VALID_CELL, 2147483647), { code: 'ENOMEM' })
+  assert.throws(() => h3node.gridRingUnsafe(VALID_CELL, 2147483647), { code: 1001 })
   // Uncompacting a res-0 pentagon to res 15 exceeds the JS array limit
   const res0Pentagon = h3node.getPentagons(0)[0]
-  assert.throws(() => h3node.uncompactCells([res0Pentagon], 15), { code: 'ENOMEM' })
+  assert.throws(() => h3node.uncompactCells([res0Pentagon], 15), { code: 1001 })
   // Ordinary sizes still work
   test.equal(h3node.gridDisk(VALID_CELL, 3).length, 37, 'small gridDisk still works')
   test.equal(h3node.cellToChildren(VALID_CELL, 11).length, 49, 'small cellToChildren still works')
@@ -963,7 +967,7 @@ registerTest('ignoredCErrorReturns', test => {
   throwsMatchingH3Js(test, 'directedEdgeToBoundary(corrupt)', 'directedEdgeToBoundary', [CORRUPT_CELL])
   throwsMatchingH3Js(test, 'cellsToMultiPolygon([good, corrupt])', 'cellsToMultiPolygon', [[VALID_CELL, CORRUPT_CELL]])
   throwsMatchingH3Js(test, 'getPentagons(16)', 'getPentagons', [16])
-  assert.throws(() => h3node.getPentagons(-1), { code: '4' })
+  assert.throws(() => h3node.getPentagons(-1), { code: 4 })
   test.done();
 });
 
@@ -1002,17 +1006,17 @@ registerTest('unitExactMatching', test => {
 registerTest('resIntegerValidation', test => {
   // h3-js validateRes requires an integer 0..15; h3-node used to truncate
   // and pass the (int) through to C.
-  assert.throws(() => h3node.getPentagons(9.5), { code: '4' })
-  assert.throws(() => h3node.getNumCells(9.5), { code: '4' })
-  assert.throws(() => h3node.getHexagonAreaAvg(9.5, 'm2'), { code: '4' })
-  assert.throws(() => h3node.getHexagonEdgeLengthAvg(9.5, 'm'), { code: '4' })
-  assert.throws(() => h3node.uncompactCells([VALID_CELL], 9.5), { code: '4' })
+  assert.throws(() => h3node.getPentagons(9.5), { code: 4 })
+  assert.throws(() => h3node.getNumCells(9.5), { code: 4 })
+  assert.throws(() => h3node.getHexagonAreaAvg(9.5, 'm2'), { code: 4 })
+  assert.throws(() => h3node.getHexagonEdgeLengthAvg(9.5, 'm'), { code: 4 })
+  assert.throws(() => h3node.uncompactCells([VALID_CELL], 9.5), { code: 4 })
   const ring = h3node.cellToBoundary(VALID_CELL)
-  assert.throws(() => h3node.polygonToCells(ring, 9.5), { code: '4' })
-  assert.throws(() => h3node.polygonToCellsExperimental(ring, 9.5, 'containmentCenter'), { code: '4' })
-  assert.throws(() => h3node.getPentagons(NaN), { code: '4' })
-  assert.throws(() => h3node.getPentagons(-1), { code: '4' })
-  assert.throws(() => h3node.getPentagons(16), { code: '4' })
+  assert.throws(() => h3node.polygonToCells(ring, 9.5), { code: 4 })
+  assert.throws(() => h3node.polygonToCellsExperimental(ring, 9.5, 'containmentCenter'), { code: 4 })
+  assert.throws(() => h3node.getPentagons(NaN), { code: 4 })
+  assert.throws(() => h3node.getPentagons(-1), { code: 4 })
+  assert.throws(() => h3node.getPentagons(16), { code: 4 })
   // h3-js throws the same E_RES_DOMAIN code
   throwsMatchingH3Js(test, 'getPentagons(9.5)', 'getPentagons', [9.5])
   throwsMatchingH3Js(test, 'uncompactCells(res 9.5)', 'uncompactCells', [[VALID_CELL], 9.5])
@@ -1026,7 +1030,7 @@ registerTest('cellToChildren_invalidCell', test => {
   // h3-js is internally inconsistent here: cellToChildrenSize(corrupt, 10)
   // throws E_CELL_INVALID (5) while cellToChildren(corrupt, 10) returns [].
   // h3-node throws for both, per its documented throw-on-bad-input stance.
-  assert.throws(() => h3node.cellToChildren(CORRUPT_CELL, 10), { code: '5' })
+  assert.throws(() => h3node.cellToChildren(CORRUPT_CELL, 10), { code: 5 })
   throwsMatchingH3Js(test, 'cellToChildrenSize(corrupt)', 'cellToChildrenSize', [CORRUPT_CELL, 10])
   // Valid cells still work
   test.equal(h3node.cellToChildren(VALID_CELL, 10).length, 7, 'valid cell children still work')
