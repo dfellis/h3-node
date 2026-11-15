@@ -110,8 +110,8 @@ jobs:
         if: ${{ !matrix.zip }}
         shell: bash
         # The archive contains the contents of prebuilds/ (e.g. linux-x64/...),
-        # matching what `prebuildify-ci download` (see scripts/fetch-artifacts.sh)
-        # extracts into ./prebuilds for publishing.
+        # matching what scripts/fetch-artifacts.sh extracts into ./prebuilds
+        # for publishing.
         run: tar -czf "${{ matrix.artifact }}" -C prebuilds .
 
       - name: Package artifact (zip)
