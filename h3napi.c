@@ -262,6 +262,109 @@ static void napiThrowErrCode(napi_env env, int32_t code, const char* message) {
   }\
   if (napiNapiUnidirectionalEdge ## V != napi_ok)
 
+// Write one 64-bit index into a 17-byte slot: byte 0 is the hex string
+// length (9..16), bytes 1..16 are lowercase hex exactly as
+// splitLongToH3Index formats it — the upper 32 bits as minimal hex (1..8
+// chars) plus the lower 32 bits zero-padded to 8. 16 is a hard maximum for
+// any index (cells are 15 chars; vertices and edges are 16), so every slot
+// always fits and no sentinel is needed.
+static void h3WriteIndexSlot(uint64_t v, uint8_t* slot) {
+  static const char HEX[] = "0123456789abcdef";
+  uint8_t up[8];
+  int nup = 0;
+  uint32_t x = (uint32_t)(v >> 32);
+  while (x) {
+    up[7 - nup] = (uint8_t)HEX[x & 0xf];
+    nup++;
+    x >>= 4;
+  }
+  slot[0] = (uint8_t)(nup + 8);
+  for (int j = 0; j < nup; j++) {
+    slot[1 + j] = up[8 - nup + j];
+  }
+  x = (uint32_t)v;
+  for (int j = 0; j < 8; j++) {
+    slot[1 + nup + (7 - j)] = (uint8_t)HEX[x & 0xf];
+    x >>= 4;
+  }
+}
+
+// Write each nonzero 64-bit index in CELLS[0..COUNT) into consecutive 17-byte
+// slots in OUT (0 = the C library's "empty slot" value, skipped). Returns the
+// number of slots written.
+static int64_t h3WriteIndexSlots(const uint64_t* cells, int64_t count,
+                                 uint8_t* out) {
+  int64_t written = 0;
+  for (int64_t i = 0; i < count; i++) {
+    if (cells[i] == 0) continue;
+    h3WriteIndexSlot(cells[i], out + (size_t)written * 17);
+    written++;
+  }
+  return written;
+}
+
+// Emit an array of H3 indexes into the existing JS value OUT. With fewer
+// than 3 entries, build a plain array of hex strings element by element
+// (per-element creation is cheaper than a TextDecoder round trip at that
+// size). Otherwise, write 17-byte hex slots (see h3WriteIndexSlots) into a
+// fresh ArrayBuffer and let index.js decode the whole block with one
+// TextDecoder.decode plus one slice per entry — replacing ~90 ns of
+// napi_create_string_utf8 + napi_set_element per entry with a few ns.
+// CELLS must hold COUNT u64 indexes (0 = empty, skipped). On success OUT is
+// a string[] (legacy path) or an ArrayBuffer (slot path); index.js tells
+// them apart.
+#define napiIndexArrayOutput(OUT, CELLS, COUNT, CLEANUP) \
+  do { \
+    int64_t napiIndexArrayNonZero = 0; \
+    for (int64_t napiIndexArrayI = 0; napiIndexArrayI < (COUNT); napiIndexArrayI++) { \
+      if ((CELLS)[napiIndexArrayI] != 0) napiIndexArrayNonZero++; \
+    } \
+    if (napiIndexArrayNonZero < 3) { \
+      if (napi_create_array(env, &OUT) != napi_ok) { CLEANUP; return NULL; } \
+      int64_t napiIndexArrayIdx = 0; \
+      for (int64_t napiIndexArrayI = 0; napiIndexArrayI < (COUNT); napiIndexArrayI++) { \
+        H3Index napiIndexArrayV = (CELLS)[napiIndexArrayI]; \
+        if (napiIndexArrayV == 0) continue; \
+        char napiIndexArrayS[17]; \
+        h3ToString(napiIndexArrayV, napiIndexArrayS, 17); \
+        napi_value napiIndexArrayVal; \
+        if (napi_create_string_utf8(env, napiIndexArrayS, strlen(napiIndexArrayS), &napiIndexArrayVal) != napi_ok) { CLEANUP; return NULL; } \
+        if (napi_set_element(env, OUT, (uint32_t)napiIndexArrayIdx, napiIndexArrayVal) != napi_ok) { CLEANUP; return NULL; } \
+        napiIndexArrayIdx++; \
+      } \
+    } else { \
+      void* napiIndexArrayData; \
+      if (napi_create_arraybuffer(env, (size_t)napiIndexArrayNonZero * 17, &napiIndexArrayData, &OUT) != napi_ok) { CLEANUP; return NULL; } \
+      h3WriteIndexSlots((const uint64_t*)(CELLS), (COUNT), (uint8_t*)napiIndexArrayData); \
+    } \
+  } while (0)
+
+// Release gridDiskDistances scratch: IDX is nullable, the rest are not.
+#define freeGridDiskScratch(IDX, CNT, DST, OUT) \
+  do { \
+    if (IDX) free(IDX); \
+    free(CNT); \
+    free(DST); \
+    free(OUT); \
+  } while (0)
+
+// Release a parsed GeoPolygon (outer loop + holes) and its fill buffer.
+#define freePolygonAndFill(P, F) \
+  do { \
+    if ((P).geoloop.numVerts > 0) { \
+      free((P).geoloop.verts); \
+    } \
+    if ((P).numHoles > 0) { \
+      for (int napiFreeHoleX = 0; napiFreeHoleX < (P).numHoles; napiFreeHoleX++) { \
+        if ((P).holes[napiFreeHoleX].numVerts > 0) { \
+          free((P).holes[napiFreeHoleX].verts); \
+        } \
+      } \
+      free((P).holes); \
+    } \
+    free(F); \
+  } while (0)
+
 #define napiNapiValue(V, T, N) \
   napi_value N;\
   if (napi_create_ ## T(env, V, &N) != napi_ok) {\
@@ -515,21 +618,8 @@ napiFn(cellToVertexes) {
   H3Error err = cellToVertexes(origin, vertexes);
   napiThrowErr(cellToVertexes, err);
 
-  napiVarArray(result) {
-    return NULL;
-  }
-  int arrayIndex = 0;
-  for (int i = 0; i < 6; i++) {
-    if (vertexes[i] == 0) continue;
-    H3Index v = vertexes[i];
-    napiNapiH3IndexFull(v, vertexVal) {
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, vertexVal) {
-      return NULL;
-    }
-    arrayIndex++;
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, vertexes, 6, );
 
   return result;
 }
@@ -763,26 +853,8 @@ napiFn(gridDisk) {
     return NULL;
   }
 
-  int arrayIndex = 0;
-  napiVarArray(result) {
-    free(gridDiskOut);
-    return NULL;
-  }
-  for (int64_t i = 0; i < maxSize; i++) {
-    if (gridDiskOut[i] == 0) continue;
-
-    H3Index h3Num = gridDiskOut[i];
-    napiNapiH3Index(h3Num, h3Val) {
-      free(gridDiskOut);
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, h3Val) {
-      free(gridDiskOut);
-      return NULL;
-    }
-
-    arrayIndex++;
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, gridDiskOut, maxSize, free(gridDiskOut));
 
   free(gridDiskOut);
 
@@ -815,60 +887,129 @@ napiFn(gridDiskDistances) {
     return NULL;
   }
 
-  napiVarArray(result) {
+  // Per-ring nonzero counts, followed in the same allocation by the
+  // ringCursor array used for the grouped slot write below (one free).
+  int* ringCounts = calloc(2 * (size_t)(k + 1), sizeof(int));
+  int* ringCursor = ringCounts == NULL ? NULL : ringCounts + (k + 1);
+  int64_t nonZero = 0;
+  if (ringCounts == NULL) {
     free(distances);
     free(gridDiskOut);
+    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate ring counts");
     return NULL;
   }
-  for (int i = 0; i < k + 1; i++) {
-    napiVarArray(ring) {
-      free(distances);
-      free(gridDiskOut);
-      return NULL;
-    }
-    napiSetNapiValue(result, i, ring) {
-      free(distances);
-      free(gridDiskOut);
-      return NULL;
-    }
-  }
-
-  int* arrayIndices = calloc(k + 1, sizeof(int));
-  if (arrayIndices == NULL) {
-    free(distances);
-    free(gridDiskOut);
-    napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate ring indices");
-    return NULL;
-  }
-
   for (int64_t i = 0; i < maxSize; i++) {
     if (gridDiskOut[i] == 0) continue;
-
-    H3Index h3Num = gridDiskOut[i];
-    int ring = distances[i];
-    napiNapiH3Index(h3Num, h3Val) {
-      free(arrayIndices);
-      free(distances);
-      free(gridDiskOut);
-      return NULL;
-    }
-    napiFromArray(result, ring, ringArray) {
-      free(arrayIndices);
-      free(distances);
-      free(gridDiskOut);
-      return NULL;
-    }
-    napiSetNapiValue(ringArray, arrayIndices[ring], h3Val) {
-      free(arrayIndices);
-      free(distances);
-      free(gridDiskOut);
-      return NULL;
-    }
-
-    arrayIndices[ring]++;
+    ringCounts[distances[i]]++;
+    nonZero++;
   }
 
-  free(arrayIndices);
+  napi_value result;
+  if (nonZero >= 3) {
+    // One 17-byte-slot block for the whole disk plus per-ring slot counts;
+    // index.js reassembles the rings with a single TextDecoder.decode.
+    void* slotData;
+    if (napi_create_arraybuffer(env, (size_t)nonZero * 17, &slotData, &result) != napi_ok) {
+      freeGridDiskScratch(NULL, ringCounts, distances, gridDiskOut);
+      napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create slot buffer");
+      return NULL;
+    }
+    // The C library fills gridDiskOut as a hash set, so the cells are not
+    // ring-contiguous. Place the slots per ring via ringCursor, which
+    // preserves the within-ring order the legacy path produced.
+    for (int i = 1; i <= k; i++) {
+      ringCursor[i] = ringCursor[i - 1] + ringCounts[i - 1];
+    }
+    for (int64_t i = 0; i < maxSize; i++) {
+      H3Index v = gridDiskOut[i];
+      if (v == 0) continue;
+      int pos = ringCursor[distances[i]]++;
+      h3WriteIndexSlot(v, (uint8_t*)slotData + (size_t)pos * 17);
+    }
+
+    napi_value slots = result;
+    napi_value countsAb;
+    void* countsData;
+    if (napi_create_arraybuffer(env, (size_t)(k + 1) * 4, &countsData, &countsAb) != napi_ok) {
+      freeGridDiskScratch(NULL, ringCounts, distances, gridDiskOut);
+      napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create counts buffer");
+      return NULL;
+    }
+    int32_t* counts = (int32_t*)countsData;
+    for (int i = 0; i < k + 1; i++) {
+      counts[i] = (int32_t)ringCounts[i];
+    }
+    napi_value countsArray;
+    if (napi_create_typedarray(env, napi_int32_array, (size_t)(k + 1), countsAb, 0, &countsArray) != napi_ok) {
+      freeGridDiskScratch(NULL, ringCounts, distances, gridDiskOut);
+      napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create counts array");
+      return NULL;
+    }
+    napi_value resultObj;
+    if (napi_create_object(env, &resultObj) != napi_ok) {
+      freeGridDiskScratch(NULL, ringCounts, distances, gridDiskOut);
+      napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not create result object");
+      return NULL;
+    }
+    if (napi_set_named_property(env, resultObj, "slots", slots) != napi_ok) {
+      freeGridDiskScratch(NULL, ringCounts, distances, gridDiskOut);
+      napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not store slots");
+      return NULL;
+    }
+    if (napi_set_named_property(env, resultObj, "counts", countsArray) != napi_ok) {
+      freeGridDiskScratch(NULL, ringCounts, distances, gridDiskOut);
+      napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not store counts");
+      return NULL;
+    }
+    result = resultObj;
+  } else {
+    // Small output (k == 0): keep the classic per-ring string arrays.
+    int* arrayIndices = calloc(k + 1, sizeof(int));
+    if (arrayIndices == NULL) {
+      freeGridDiskScratch(NULL, ringCounts, distances, gridDiskOut);
+      napiThrowErrCode(env, E_MEMORY_ALLOC, "Could not allocate ring indices");
+      return NULL;
+    }
+    if (napi_create_array(env, &result) != napi_ok) {
+      freeGridDiskScratch(arrayIndices, ringCounts, distances, gridDiskOut);
+      return NULL;
+    }
+    for (int i = 0; i < k + 1; i++) {
+      napiVarArray(ring) {
+        freeGridDiskScratch(arrayIndices, ringCounts, distances, gridDiskOut);
+        return NULL;
+      }
+      if (napi_set_element(env, result, (uint32_t)i, ring) != napi_ok) {
+        freeGridDiskScratch(arrayIndices, ringCounts, distances, gridDiskOut);
+        return NULL;
+      }
+    }
+
+    for (int64_t i = 0; i < maxSize; i++) {
+      if (gridDiskOut[i] == 0) continue;
+
+      H3Index h3Num = gridDiskOut[i];
+      int ring = distances[i];
+      napiNapiH3Index(h3Num, h3Val) {
+        freeGridDiskScratch(arrayIndices, ringCounts, distances, gridDiskOut);
+        return NULL;
+      }
+      napiFromArray(result, ring, ringArray) {
+        freeGridDiskScratch(arrayIndices, ringCounts, distances, gridDiskOut);
+        return NULL;
+      }
+      if (napi_set_element(env, ringArray, (uint32_t)arrayIndices[ring], h3Val) != napi_ok) {
+        freeGridDiskScratch(arrayIndices, ringCounts, distances, gridDiskOut);
+        return NULL;
+      }
+
+      arrayIndices[ring]++;
+    }
+
+    free(arrayIndices);
+  }
+
+  free(ringCounts);
   free(distances);
   free(gridDiskOut);
 
@@ -905,26 +1046,8 @@ napiFn(gridRingUnsafe) {
     return NULL;
   }
 
-  int arrayIndex = 0;
-  napiVarArray(result) {
-    free(gridRingUnsafeOut);
-    return NULL;
-  }
-  for (int i = 0; i < maxSize; i++) {
-    if (gridRingUnsafeOut[i] == 0) continue;
-
-    H3Index h3Num = gridRingUnsafeOut[i];
-    napiNapiH3Index(h3Num, h3Val) {
-      free(gridRingUnsafeOut);
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, h3Val) {
-      free(gridRingUnsafeOut);
-      return NULL;
-    }
-
-    arrayIndex++;
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, gridRingUnsafeOut, maxSize, free(gridRingUnsafeOut));
 
   free(gridRingUnsafeOut);
 
@@ -1020,26 +1143,8 @@ napiFn(gridPathCells) {
     return NULL;
   }
 
-  int arrayIndex = 0;
-  napiVarArray(result) {
-    free(line);
-    return NULL;
-  }
-  for (int i = 0; i < numHexes; i++) {
-    if (line[i] == 0) continue;
-
-    H3Index h3Num = line[i];
-    napiNapiH3Index(h3Num, h3Val) {
-      free(line);
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, h3Val) {
-      free(line);
-      return NULL;
-    }
-
-    arrayIndex++;
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, line, numHexes, free(line));
 
   free(line);
   return result;
@@ -1062,26 +1167,8 @@ napiFn(gridRing) {
   err = gridRing(h3, k, gridRingOut);
   napiThrowErr(gridRing, err);
 
-  int arrayIndex = 0;
-  napiVarArray(result) {
-    free(gridRingOut);
-    return NULL;
-  }
-  for (int64_t i = 0; i < maxSize; i++) {
-    if (gridRingOut[i] == 0) continue;
-
-    H3Index h3Num = gridRingOut[i];
-    napiNapiH3Index(h3Num, h3Val) {
-      free(gridRingOut);
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, h3Val) {
-      free(gridRingOut);
-      return NULL;
-    }
-
-    arrayIndex++;
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, gridRingOut, maxSize, free(gridRingOut));
 
   free(gridRingOut);
 
@@ -1136,25 +1223,9 @@ napiFn(cellToChildren) {
     return NULL;
   }
 
-  napiVarArray(result) {
-    free(children);
-    return NULL;
-  }
-  int arrayIndex = 0;
-  for (int64_t i = 0; i < maxSize; i++) {
-    H3Index child = children[i];
-    if (child == 0) continue;
-    napiNapiH3Index(child, childObj) {
-      free(children);
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, childObj) {
-      free(children);
-      return NULL;
-    }
-    arrayIndex++;
-  }
-  
+  napi_value result;
+  napiIndexArrayOutput(result, children, maxSize, free(children));
+
   free(children);
   return result;
 }
@@ -1209,27 +1280,9 @@ napiFn(compactCells) {
     free(uncompactedArray);
     return NULL;
   }
-  napiVarArray(result) {
-    free(compactedArray);
-    free(uncompactedArray);
-    return NULL;
-  }
-  int arrayIndex = 0;
-  for (uint32_t i = 0; i < arrayLen; i++) {
-    H3Index compacted = compactedArray[i];
-    if (compacted == 0) continue;
-    napiNapiH3Index(compacted, compactedObj) {
-      free(compactedArray);
-      free(uncompactedArray);
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, compactedObj) {
-      free(compactedArray);
-      free(uncompactedArray);
-      return NULL;
-    }
-    arrayIndex++;
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, compactedArray, arrayLen,
+    do { free(compactedArray); free(uncompactedArray); } while (0));
 
   free(compactedArray);
   free(uncompactedArray);
@@ -1283,27 +1336,9 @@ napiFn(uncompactCells) {
     free(uncompactedArray);
     return NULL;
   }
-  napiVarArray(result) {
-    free(compactedArray);
-    free(uncompactedArray);
-    return NULL;
-  }
-  int arrayIndex = 0;
-  for (int64_t i = 0; i < maxSize; i++) {
-    H3Index uncompacted = uncompactedArray[i];
-    if (uncompacted == 0) continue;
-    napiNapiH3Index(uncompacted, uncompactedObj) {
-      free(compactedArray);
-      free(uncompactedArray);
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, uncompactedObj) {
-      free(compactedArray);
-      free(uncompactedArray);
-      return NULL;
-    }
-    arrayIndex++;
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, uncompactedArray, maxSize,
+    do { free(compactedArray); free(uncompactedArray); } while (0));
 
   free(compactedArray);
   free(uncompactedArray);
@@ -1621,42 +1656,7 @@ napiFn(polygonToCells) {
     return NULL;
   }
 
-  int arrayIndex = 0;
-  for (int64_t i = 0; i < maxSize; i++) {
-    H3Index h3 = fill[i];
-    if (h3 == 0) continue;
-    napiNapiH3Index(h3, h3Obj) {
-      if (polygon.geoloop.numVerts > 0) {
-        free(polygon.geoloop.verts);
-      }
-      if (polygon.numHoles > 0) {
-        for (int x = 0; x < polygon.numHoles; x++) {
-          if (polygon.holes[x].numVerts > 0) {
-            free(polygon.holes[x].verts);
-          }
-        }
-        free(polygon.holes);
-      }
-      free(fill);
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, h3Obj) {
-      if (polygon.geoloop.numVerts > 0) {
-        free(polygon.geoloop.verts);
-      }
-      if (polygon.numHoles > 0) {
-        for (int x = 0; x < polygon.numHoles; x++) {
-          if (polygon.holes[x].numVerts > 0) {
-            free(polygon.holes[x].verts);
-          }
-        }
-        free(polygon.holes);
-      }
-      free(fill);
-      return NULL;
-    }
-    arrayIndex++;
-  }
+  napiIndexArrayOutput(result, fill, maxSize, freePolygonAndFill(polygon, fill));
 
   free(fill);
   if (polygon.geoloop.numVerts > 0) {
@@ -1989,24 +1989,8 @@ napiFn(polygonToCellsExperimental) {
     return NULL;
   }
 
-  int arrayIndex = 0;
-  napiVarArray(result) {
-    free(fill);
-    return NULL;
-  }
-  for (int64_t i = 0; i < maxSize; i++) {
-    H3Index h3 = fill[i];
-    if (h3 == 0) continue;
-    napiNapiH3Index(h3, h3Obj) {
-      free(fill);
-      return NULL;
-    }
-    napiSetNapiValue(result, arrayIndex, h3Obj) {
-      free(fill);
-      return NULL;
-    }
-    arrayIndex++;
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, fill, maxSize, free(fill));
 
   free(fill);
   return result;
@@ -2111,15 +2095,8 @@ napiFn(originToDirectedEdges) {
   H3Error err = originToDirectedEdges(origin, edges);
   napiThrowErr(originToDirectedEdges, err);
 
-  napiVarArray(result);
-  int arrayLength = 0;
-  for (int i = 0; i < 6; i++) {
-    if (edges[i] == 0) continue;
-    H3Index edge = edges[i];
-    napiNapiUnidirectionalEdge(edge, unidirectionalEdge);
-    napiSetNapiValue(result, arrayLength, unidirectionalEdge);
-    arrayLength++;
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, edges, 6, );
 
   return result;
 }
@@ -2420,21 +2397,8 @@ napiFn(getRes0Cells) {
     return NULL;
   }
 
-  napiVarArray(result) {
-    free(res0Indexes);
-    return NULL;
-  }
-  for (int i = 0; i < numHexes; i++) {
-    H3Index h3Num = res0Indexes[i];
-    napiNapiH3Index(h3Num, h3Val) {
-      free(res0Indexes);
-      return NULL;
-    }
-    napiSetNapiValue(result, i, h3Val) {
-      free(res0Indexes);
-      return NULL;
-    }
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, res0Indexes, numHexes, free(res0Indexes));
 
   free(res0Indexes);
   return result;
@@ -2456,21 +2420,8 @@ napiFn(getPentagons) {
     return NULL;
   }
 
-  napiVarArray(result) {
-    free(pentagonIndexes);
-    return NULL;
-  }
-  for (int i = 0; i < 12; i++) {
-    H3Index h3Num = pentagonIndexes[i];
-    napiNapiH3Index(h3Num, h3Val) {
-      free(pentagonIndexes);
-      return NULL;
-    }
-    napiSetNapiValue(result, i, h3Val) {
-      free(pentagonIndexes);
-      return NULL;
-    }
-  }
+  napi_value result;
+  napiIndexArrayOutput(result, pentagonIndexes, 12, free(pentagonIndexes));
 
   free(pentagonIndexes);
   return result;

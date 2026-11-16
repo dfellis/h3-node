@@ -138,363 +138,381 @@ Linux glibc prebuilds are verified before publishing to require no newer than `G
 Being 100% javascript it works across the entire Javascript ecosystem (especially when paired with browserify or babel to handle the Node-isms for non-Node JS environments), but that portability comes at a cost in performance. Preliminary benchmarks show a significant speedup with the N-API approach:
 
 ```
-index
-✔ isValidCell_array
-✔ isValidCell_uint32array
-✔ cellToLatLng_array
-✔ cellToLatLng_uint32array
-✔ latLngToCell
-✔ cellToLatLng
-✔ cellToBoundary
-✔ getResolution
-✔ getBaseCellNumber
-✔ isValidCell
-✔ isResClassIII
-✔ isPentagon
-✔ getIcosahedronFaces
-✔ gridDisk
-✔ gridDiskDistances
-✔ gridRingUnsafe
-✔ gridDistance
-✔ cellToLocalIj
-undefined
-undefined
-✔ localIjToCell
-✔ cellToParent
-✔ cellToChildren
-✔ cellToCenterChild
-✔ compactCells
-✔ uncompactCells
-✔ polygonToCells
-✔ polygonToCellsWithHoles
-✔ cellsToMultiPolygon
-✔ cellsToMultiPolygonGeoJsonMode
-✔ cellsToMultiPolygonTrueMultiPolygon
-✔ areNeighborCells
-✔ cellsToDirectedEdge
-✔ isValidDirectedEdge
-✔ getDirectedEdgeOrigin
-✔ getDirectedEdgeDestination
-✔ directedEdgeToCells
-✔ originToDirectedEdges
-✔ directedEdgeToBoundary
-✔ degsToRads
-✔ radsToDegs
-✔ getNumCells
-✔ getHexagonEdgeLengthAvg
-✔ edgeLength
-✔ getHexagonAreaAvg
-✔ cellArea
-✔ greatCircleDistance
-✔ getRes0Cells
-✔ getPentagons
-✔ cellToChildPos
-✔ childPosToCell
-✔ cellToChildrenSize
-✔ cellToVertex
-✔ cellToVertexes
-✔ vertexToLatLng
-✔ isValidVertex
-✔ isValidIndex
-✔ getIndexDigit
-✔ gridRing
-✔ reverseDirectedEdge
-✔ polygonToCellsExperimental
-✔ polygonToCellsExperimentalFull
-✔ polygonToCellsExperimentalOverlapping
-✔ constructCell
-✔ isValidVertex_invalid
-✔ isValidIndex_invalid
-✔ h3IndexToSplitLong
-✔ splitLongToH3Index
-✔ h3IndexToSplitLong_invalid
+✔ isValidCell_array (1.074318ms)
+✔ isValidCell_uint32array (0.096604ms)
+✔ isValidCell_invalidStrings (0.237721ms)
+✔ invalidCellStringsThrowOutsideIsValidCell (0.193807ms)
+✔ cellToLatLng_array (0.441017ms)
+✔ cellToLatLng_uint32array (0.130668ms)
+✔ cellToBoundary_geoJson (1.393072ms)
+✔ cellsToMultiPolygon_geoJson (4.531255ms)
+✔ directedEdgeToBoundary_geoJson (0.200069ms)
+✔ cellsToMultiPolygon_roundTrip (0.424124ms)
+✔ latLngToCell (0.894387ms)
+✔ cellToLatLng (0.232201ms)
+✔ cellToBoundary (0.281243ms)
+✔ getResolution (0.139054ms)
+✔ getBaseCellNumber (0.104218ms)
+✔ isValidCell (0.090471ms)
+✔ isResClassIII (0.098387ms)
+✔ isPentagon (0.093256ms)
+✔ getIcosahedronFaces (0.309597ms)
+✔ gridDisk (3.44296ms)
+✔ gridDiskDistances (1.050924ms)
+✔ gridRingUnsafe (0.797272ms)
+✔ gridDistance (0.577536ms)
+✔ cellToLocalIj (0.786111ms)
+✔ localIjToCell (0.708543ms)
+✔ cellToParent (0.16862ms)
+✔ cellToChildren (0.958378ms)
+✔ cellToCenterChild (0.147489ms)
+✔ compactCells (6.349704ms)
+✔ uncompactCells (1.264459ms)
+✔ polygonToCells (6.851927ms)
+✔ polygonToCellsWithHoles (5.440248ms)
+✔ cellsToMultiPolygon (13.254301ms)
+✔ cellsToMultiPolygonGeoJsonMode (7.671161ms)
+✔ cellsToMultiPolygonTrueMultiPolygon (12.973247ms)
+✔ areNeighborCells (0.301432ms)
+✔ cellsToDirectedEdge (0.156086ms)
+✔ isValidDirectedEdge (0.123735ms)
+✔ getDirectedEdgeOrigin (0.121831ms)
+✔ getDirectedEdgeDestination (0.132341ms)
+✔ directedEdgeToCells (0.159763ms)
+✔ originToDirectedEdges (0.129285ms)
+✔ directedEdgeToBoundary (0.128794ms)
+✔ degsToRads (0.046528ms)
+✔ radsToDegs (0.049363ms)
+✔ getNumCells (0.087296ms)
+✔ getHexagonEdgeLengthAvg (0.101993ms)
+✔ edgeLength (0.261006ms)
+✔ getHexagonAreaAvg (0.099188ms)
+✔ cellArea (0.18982ms)
+✔ greatCircleDistance (0.153511ms)
+✔ getRes0Cells (0.366556ms)
+✔ getPentagons (0.161166ms)
+✔ cellToChildPos (0.31129ms)
+✔ childPosToCell (0.333463ms)
+✔ cellToChildrenSize (0.098216ms)
+✔ cellToVertex (0.277597ms)
+✔ cellToVertexes (0.252709ms)
+✔ vertexToLatLng (0.176134ms)
+✔ isValidVertex (0.130437ms)
+✔ isValidIndex (0.14249ms)
+✔ getIndexDigit (0.114507ms)
+✔ gridRing (0.217903ms)
+✔ reverseDirectedEdge (0.172817ms)
+✔ polygonToCellsExperimental (8.057633ms)
+✔ polygonToCellsExperimentalFull (5.297408ms)
+✔ polygonToCellsExperimentalOverlapping (4.645071ms)
+✔ constructCell (0.225288ms)
+✔ isValidVertex_invalid (0.068179ms)
+✔ isValidIndex_invalid (0.061827ms)
+✔ h3IndexToSplitLong (0.150495ms)
+✔ splitLongToH3Index (0.118575ms)
+✔ h3IndexToSplitLong_invalid (0.055646ms)
+✔ latLngToCellBenchmark (5.289784ms)
+✔ cellToLatLngBenchmark (2.474023ms)
+✔ cellToBoundaryBenchmark (5.72543ms)
+✔ getResolutionBenchmark (1.398233ms)
+✔ getBaseCellNumberBenchmark (1.370189ms)
+✔ isValidCellBenchmark (0.852617ms)
+✔ isResClassIIIBenchmark (1.420945ms)
+✔ isPentagonBenchmark (1.121276ms)
+✔ getIcosahedronFacesBenchmark (3.202915ms)
+✔ gridDiskBenchmark (69.399163ms)
+✔ gridDiskDistancesBenchmark (60.784073ms)
+✔ gridRingUnsafeBenchmark (8.10874ms)
+✔ gridDistanceBenchmark (10.743839ms)
+✔ cellToLocalIjBenchmark (11.003631ms)
+✔ localIjToCellBenchmark (6.136099ms)
+✔ gridPathCellsBenchmark (441.591147ms)
+✔ cellToParentBenchmark (1.37598ms)
+✔ cellToChildrenBenchmark (400.767956ms)
+✔ cellToCenterChildBenchmark (1.442356ms)
+✔ compactCellsBenchmark (88.195325ms)
+✔ uncompactCellsBenchmark (47.833498ms)
+✔ polygonToCellsBenchmark (29.72985ms)
+✔ polygonToCellsWithHolesBenchmark (39.09875ms)
+✔ cellsToMultiPolygonBenchmark (534.070087ms)
+✔ cellsToMultiPolygonGeoJsonModeBenchmark (531.733715ms)
+✔ cellsToMultiPolygonTrueMultiPolygonBenchmark (718.799321ms)
+✔ areNeighborCellsBenchmark (3.532771ms)
+✔ cellsToDirectedEdgeBenchmark (2.275526ms)
+✔ isValidDirectedEdgeBenchmark (1.481861ms)
+✔ getDirectedEdgeOriginBenchmark (2.165848ms)
+✔ getDirectedEdgeDestinationBenchmark (2.283351ms)
+✔ directedEdgeToCellsBenchmark (2.663362ms)
+✔ originToDirectedEdgesBenchmark (2.893789ms)
+✔ directedEdgeToBoundaryBenchmark (3.572376ms)
+✔ degsToRadsBenchmark (0.195411ms)
+✔ radsToDegsBenchmark (0.203907ms)
+✔ getNumCellsBenchmark (0.405659ms)
+✔ getHexagonEdgeLengthAvgBenchmark (0.380592ms)
+✔ edgeLengthBenchmark (3.611981ms)
+✔ getHexagonAreaAvgBenchmark (0.373468ms)
+✔ cellAreaBenchmark (3.08978ms)
+✔ greatCircleDistanceBenchmark (0.920756ms)
+✔ getRes0CellsBenchmark (13.062506ms)
+✔ getPentagonsBenchmark (2.772669ms)
+✔ cellToChildPosBenchmark (2.329809ms)
+✔ childPosToCellBenchmark (2.168393ms)
+✔ cellToChildrenSizeBenchmark (1.446614ms)
+✔ cellToVertexBenchmark (2.405713ms)
+✔ cellToVertexesBenchmark (4.799734ms)
+✔ vertexToLatLngBenchmark (2.32474ms)
+✔ isValidVertexBenchmark (1.354088ms)
+✔ constructCellBenchmark (2.739156ms)
+✔ getIndexDigitBenchmark (1.074418ms)
+✔ gridRingBenchmark (10.951603ms)
+✔ isValidIndexBenchmark (0.716679ms)
+✔ polygonToCellsExperimentalBenchmark (148.120637ms)
+✔ reverseDirectedEdgeBenchmark (2.61981ms)
+✔ allocationGuards (0.320318ms)
+✔ ignoredCErrorReturns (0.264872ms)
+✔ getResolution_invalidCells (0.054383ms)
+✔ unitExactMatching (0.183037ms)
+✔ resIntegerValidation (0.25839ms)
+✔ cellToChildren_invalidCell (0.106592ms)
+✔ corruptCellComputedValuesMatchH3Js (0.091113ms)
+✔ test/types-coverage.js (19.641906ms)
 
 latLngToCell Benchmark:
-H3-js time in ns:    4619103
-H3-node time in ns:  488187
-✔ latLngToCellBenchmark
+H3-js time in ns:    4292582
+H3-node time in ns:  514375
 
 cellToLatLng Benchmark:
-H3-js time in ns:    857377
-H3-node time in ns:  563219
-✔ cellToLatLngBenchmark
+H3-js time in ns:    905778
+H3-node time in ns:  634995
 
 cellToBoundary Benchmark:
-H3-js time in ns:    1665811
-H3-node time in ns:  1945230
-✔ cellToBoundaryBenchmark
+H3-js time in ns:    2084885
+H3-node time in ns:  2551350
 
 getResolution Benchmark:
-H3-js time in ns:    271315
-H3-node time in ns:  133543
-✔ getResolutionBenchmark
+H3-js time in ns:    382726
+H3-node time in ns:  130618
 
 getBaseCellNumber Benchmark:
-H3-js time in ns:    197505
-H3-node time in ns:  131780
-✔ getBaseCellNumberBenchmark
+H3-js time in ns:    288638
+H3-node time in ns:  131870
 
 isValidCell Benchmark:
-H3-js time in ns:    198206
-H3-node time in ns:  102865
-✔ isValidCellBenchmark
+H3-js time in ns:    220779
+H3-node time in ns:  78739
 
 isResClassIII Benchmark:
-H3-js time in ns:    190221
-H3-node time in ns:  122021
-✔ isResClassIIIBenchmark
+H3-js time in ns:    297585
+H3-node time in ns:  114096
 
 isPentagon Benchmark:
-H3-js time in ns:    202995
-H3-node time in ns:  123595
-✔ isPentagonBenchmark
+H3-js time in ns:    176064
+H3-node time in ns:  119797
 
 getIcosahedronFaces Benchmark:
-H3-js time in ns:    1144622
-H3-node time in ns:  372416
-✔ getIcosahedronFacesBenchmark
+H3-js time in ns:    1825342
+H3-node time in ns:  689106
 
 gridDisk Benchmark:
-H3-js time in ns:    63013568
-H3-node time in ns:  16583512
-✔ gridDiskBenchmark
+H3-js time in ns:    60352523
+H3-node time in ns:  8157172
 
 gridDiskDistances Benchmark:
-H3-js time in ns:    51902568
-H3-node time in ns:  20152803
-✔ gridDiskDistancesBenchmark
+H3-js time in ns:    51355238
+H3-node time in ns:  8557461
 
 gridRingUnsafe Benchmark:
-H3-js time in ns:    5116657
-H3-node time in ns:  3881695
-✔ gridRingUnsafeBenchmark
+H3-js time in ns:    5105143
+H3-node time in ns:  2002077
 
 gridDistance Benchmark:
-H3-js time in ns:    1699194
-H3-node time in ns:  852538
-✔ gridDistanceBenchmark
+H3-js time in ns:    2118589
+H3-node time in ns:  999436
 
 cellToLocalIj Benchmark:
-H3-js time in ns:    811320
-H3-node time in ns:  604086
-✔ cellToLocalIjBenchmark
+H3-js time in ns:    994256
+H3-node time in ns:  569891
 
 localIjToCell Benchmark:
-H3-js time in ns:    4243581
-H3-node time in ns:  1036647
-✔ localIjToCellBenchmark
+H3-js time in ns:    4331386
+H3-node time in ns:  972846
 
 gridPathCells Benchmark:
-H3-js time in ns:    43459691
-H3-node time in ns:  10648602
-✔ gridPathCellsBenchmark
+H3-js time in ns:    44086932
+H3-node time in ns:  7785337
 
 cellToParent Benchmark:
-H3-js time in ns:    447589
-H3-node time in ns:  172287
-✔ cellToParentBenchmark
+H3-js time in ns:    413695
+H3-node time in ns:  174802
 
 cellToChildren Benchmark:
-H3-js time in ns:    300050046
-H3-node time in ns:  287434062
-✔ cellToChildrenBenchmark
+H3-js time in ns:    317567285
+H3-node time in ns:  82389022
 
 cellToCenterChild Benchmark:
-H3-js time in ns:    712712
-H3-node time in ns:  260535
-✔ cellToCenterChildBenchmark
+H3-js time in ns:    448631
+H3-node time in ns:  172037
 
 compactCells Benchmark:
-H3-js time in ns:    72515845
-H3-node time in ns:  17961426
-✔ compactCellsBenchmark
+H3-js time in ns:    67761656
+H3-node time in ns:  15632080
 
 uncompactCells Benchmark:
-H3-js time in ns:    20682317
-H3-node time in ns:  16906043
-✔ uncompactCellsBenchmark
+H3-js time in ns:    19058489
+H3-node time in ns:  8992236
 
 polygonToCells Benchmark:
-H3-js time in ns:    25933029
-H3-node time in ns:  9079646
-✔ polygonToCellsBenchmark
+H3-js time in ns:    20758854
+H3-node time in ns:  8666318
 
 polygonToCellsWithHoles Benchmark:
-H3-js time in ns:    25985639
-H3-node time in ns:  14340948
-✔ polygonToCellsWithHolesBenchmark
+H3-js time in ns:    25204236
+H3-node time in ns:  13543168
 
 cellsToMultiPolygon Benchmark:
-H3-js time in ns:    461377552
-H3-node time in ns:  84929496
-✔ cellsToMultiPolygonBenchmark
+H3-js time in ns:    448033417
+H3-node time in ns:  81368045
 
 cellsToMultiPolygonGeoJsonMode Benchmark:
-H3-js time in ns:    461839378
-H3-node time in ns:  87037115
-✔ cellsToMultiPolygonGeoJsonModeBenchmark
+H3-js time in ns:    445986113
+H3-node time in ns:  81012791
 
 cellsToMultiPolygonTrueMultiPolygon Benchmark:
-H3-js time in ns:    610045029
-H3-node time in ns:  120697333
-✔ cellsToMultiPolygonTrueMultiPolygonBenchmark
+H3-js time in ns:    588228972
+H3-node time in ns:  114303705
 
 areNeighborCells Benchmark:
-H3-js time in ns:    994547
-H3-node time in ns:  306441
-✔ areNeighborCellsBenchmark
+H3-js time in ns:    941085
+H3-node time in ns:  303636
 
 cellsToDirectedEdge Benchmark:
-H3-js time in ns:    629765
-H3-node time in ns:  300991
-✔ cellsToDirectedEdgeBenchmark
+H3-js time in ns:    572065
+H3-node time in ns:  297695
 
 isValidDirectedEdge Benchmark:
-H3-js time in ns:    253210
-H3-node time in ns:  131360
-✔ isValidDirectedEdgeBenchmark
+H3-js time in ns:    205750
+H3-node time in ns:  127091
 
 getDirectedEdgeOrigin Benchmark:
-H3-js time in ns:    331408
-H3-node time in ns:  170904
-✔ getDirectedEdgeOriginBenchmark
+H3-js time in ns:    352178
+H3-node time in ns:  162899
 
 getDirectedEdgeDestination Benchmark:
-H3-js time in ns:    416540
-H3-node time in ns:  181915
-✔ getDirectedEdgeDestinationBenchmark
+H3-js time in ns:    438612
+H3-node time in ns:  175833
 
 directedEdgeToCells Benchmark:
-H3-js time in ns:    507963
-H3-node time in ns:  384920
-✔ directedEdgeToCellsBenchmark
+H3-js time in ns:    609766
+H3-node time in ns:  383657
 
 originToDirectedEdges Benchmark:
-H3-js time in ns:    737148
-H3-node time in ns:  708925
-✔ originToDirectedEdgesBenchmark
+H3-js time in ns:    685149
+H3-node time in ns:  1578514
 
 directedEdgeToBoundary Benchmark:
-H3-js time in ns:    1011980
-H3-node time in ns:  1092833
-✔ directedEdgeToBoundaryBenchmark
+H3-js time in ns:    915146
+H3-node time in ns:  981993
 
 degsToRads Benchmark:
-H3-js time in ns:    19587
-H3-node time in ns:  40807
-✔ degsToRadsBenchmark
+H3-js time in ns:    18865
+H3-node time in ns:  37922
 
 radsToDegs Benchmark:
-H3-js time in ns:    36149
-H3-node time in ns:  38083
-✔ radsToDegsBenchmark
+H3-js time in ns:    19306
+H3-node time in ns:  39355
 
 getNumCells Benchmark:
-H3-js time in ns:    232130
-H3-node time in ns:  64342
-✔ getNumCellsBenchmark
+H3-js time in ns:    215659
+H3-node time in ns:  52910
 
 getHexagonEdgeLengthAvg Benchmark:
-H3-js time in ns:    215739
-H3-node time in ns:  88438
-✔ getHexagonEdgeLengthAvgBenchmark
+H3-js time in ns:    141849
+H3-node time in ns:  58982
 
 edgeLength Benchmark:
-H3-js time in ns:    1321156
-H3-node time in ns:  604257
-✔ edgeLengthBenchmark
+H3-js time in ns:    1204345
+H3-node time in ns:  584238
 
 getHexagonAreaAvg Benchmark:
-H3-js time in ns:    161977
-H3-node time in ns:  86474
-✔ getHexagonAreaAvgBenchmark
+H3-js time in ns:    113715
+H3-node time in ns:  82216
 
 cellArea Benchmark:
-H3-js time in ns:    1551003
-H3-node time in ns:  955222
-✔ cellAreaBenchmark
+H3-js time in ns:    1445472
+H3-node time in ns:  902432
 
 greatCircleDistance Benchmark:
-H3-js time in ns:    462517
-H3-node time in ns:  259022
-✔ greatCircleDistanceBenchmark
+H3-js time in ns:    494317
+H3-node time in ns:  243752
 
 getRes0Cells Benchmark:
-H3-js time in ns:    11481543
-H3-node time in ns:  10656327
-✔ getRes0CellsBenchmark
+H3-js time in ns:    10858546
+H3-node time in ns:  1996988
 
 getPentagons Benchmark:
-H3-js time in ns:    1209715
-H3-node time in ns:  1286511
-✔ getPentagonsBenchmark
+H3-js time in ns:    1927756
+H3-node time in ns:  633923
 
 cellToChildPos Benchmark:
-H3-js time in ns:    1071734
-H3-node time in ns:  161506
-✔ cellToChildPosBenchmark
+H3-js time in ns:    1457024
+H3-node time in ns:  150866
 
 childPosToCell Benchmark:
-H3-js time in ns:    1162004
-H3-node time in ns:  321581
-✔ childPosToCellBenchmark
+H3-js time in ns:    946355
+H3-node time in ns:  320978
 
 cellToChildrenSize Benchmark:
-H3-js time in ns:    485771
-H3-node time in ns:  221781
-✔ cellToChildrenSizeBenchmark
+H3-js time in ns:    336328
+H3-node time in ns:  125778
 
 cellToVertex Benchmark:
-H3-js time in ns:    1316878
-H3-node time in ns:  425497
-✔ cellToVertexBenchmark
+H3-js time in ns:    1139592
+H3-node time in ns:  392194
 
 cellToVertexes Benchmark:
-H3-js time in ns:    3041841
-H3-node time in ns:  1803081
-✔ cellToVertexesBenchmark
+H3-js time in ns:    2705753
+H3-node time in ns:  1467784
 
 vertexToLatLng Benchmark:
-H3-js time in ns:    690139
-H3-node time in ns:  571565
-✔ vertexToLatLngBenchmark
+H3-js time in ns:    660854
+H3-node time in ns:  553590
 
 isValidVertex Benchmark:
-H3-js time in ns:    332211
-H3-node time in ns:  163350
-✔ isValidVertexBenchmark
+H3-js time in ns:    303426
+H3-node time in ns:  149553
 
 constructCell Benchmark:
-H3-js time in ns:    768479
-H3-node time in ns:  376584
-✔ constructCellBenchmark
+H3-js time in ns:    703414
+H3-node time in ns:  360965
 
 getIndexDigit Benchmark:
-H3-js time in ns:    243542
-H3-node time in ns:  132492
-✔ getIndexDigitBenchmark
+H3-js time in ns:    222873
+H3-node time in ns:  127111
 
 gridRing Benchmark:
-H3-js time in ns:    7962526
-H3-node time in ns:  2710041
-✔ gridRingBenchmark
+H3-js time in ns:    8627194
+H3-node time in ns:  1658506
 
 isValidIndex Benchmark:
-H3-js time in ns:    217833
-H3-node time in ns:  97465
-✔ isValidIndexBenchmark
+H3-js time in ns:    213766
+H3-node time in ns:  93978
 
 polygonToCellsExperimental Benchmark:
-H3-js time in ns:    97051925
-H3-node time in ns:  60139124
-✔ polygonToCellsExperimentalBenchmark
+H3-js time in ns:    90878784
+H3-node time in ns:  56961291
 
 reverseDirectedEdge Benchmark:
-H3-js time in ns:    381964
-H3-node time in ns:  214928
-✔ reverseDirectedEdgeBenchmark
+H3-js time in ns:    356757
+H3-node time in ns:  189099
 
-OK: 624 assertions (4427ms)
+ℹ tests 138
+ℹ suites 0
+ℹ pass 138
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3464.06562
 ```
 
 `h3-node` is a [Node N-API binding](https://nodejs.org/api/n-api.html) of the [original C H3 code](https://github.com/uber/h3) to provide a higher-performance option in backend Node.js applications.
